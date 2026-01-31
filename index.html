@@ -231,14 +231,19 @@
             createExplosion(event.clientX, event.clientY);
             
             // Change color temporarily
-            const originalTextShadow = letter.style.textShadow;
+            const defaultShadow = `
+                0 0 20px rgba(255, 0, 255, 0.8),
+                0 0 40px rgba(255, 0, 255, 0.6),
+                0 0 60px rgba(0, 255, 255, 0.6),
+                0 0 80px rgba(0, 255, 255, 0.4)
+            `;
             letter.style.textShadow = `
                 0 0 40px rgba(255, 255, 0, 1),
                 0 0 80px rgba(255, 255, 0, 0.8),
                 0 0 120px rgba(255, 0, 255, 0.6)
             `;
             setTimeout(() => {
-                letter.style.textShadow = originalTextShadow;
+                letter.style.textShadow = defaultShadow;
             }, 300);
         }
 
@@ -253,14 +258,6 @@
                 particle.style.height = '10px';
                 particle.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
                 particle.style.borderRadius = '50%';
-                
-                const angle = (Math.PI * 2 * i) / 12;
-                const velocity = 100 + Math.random() * 50;
-                const tx = Math.cos(angle) * velocity;
-                const ty = Math.sin(angle) * velocity;
-                
-                particle.style.setProperty('--tx', tx + 'px');
-                particle.style.setProperty('--ty', ty + 'px');
                 
                 document.body.appendChild(particle);
                 
@@ -314,17 +311,8 @@
 
         // Continuous animation
         function animate() {
-            // Add automatic rotation animation
-            const time = Date.now() * 0.0005;
-            const letters = document.querySelectorAll('.letter');
-            
-            letters.forEach((letter, index) => {
-                const offset = index * 0.5;
-                const y = Math.sin(time * 2 + offset) * 10;
-                const z = Math.cos(time + offset) * 20;
-                
-                letter.style.transform = `translateY(${y}px) translateZ(${z}px) rotateY(${time * 20}deg)`;
-            });
+            // Note: Removed direct transform manipulation to avoid conflicts with CSS animations
+            // The letters now use pure CSS animations defined in the stylesheet
             
             requestAnimationFrame(animate);
         }

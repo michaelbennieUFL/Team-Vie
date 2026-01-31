@@ -30,6 +30,6 @@ An interactive 3D website featuring "Team Vie" in animated 3D text with game-lik
 
 ### Technologies Used
 
-- Three.js (r128) for 3D rendering
-- WebGL for hardware-accelerated graphics
+- CSS 3D Transforms for 3D rendering
+- HTML5 for structure
 - Pure JavaScript for interactivity
