@@ -15,12 +15,14 @@
             overflow: hidden;
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            perspective: 1000px;
         }
 
-        #canvas-container {
+        #scene-container {
             width: 100vw;
             height: 100vh;
             position: relative;
+            transform-style: preserve-3d;
         }
 
         #info {
@@ -70,338 +72,272 @@
             backdrop-filter: blur(10px);
         }
 
-        .loading {
+        #text-container {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: white;
-            font-size: 24px;
-            z-index: 100;
+            transform-style: preserve-3d;
+            display: flex;
+            gap: 20px;
+        }
+
+        .letter {
+            font-size: 100px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.8),
+                0 0 40px rgba(255, 0, 255, 0.6),
+                0 0 60px rgba(0, 255, 255, 0.6),
+                0 0 80px rgba(0, 255, 255, 0.4);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            transition: transform 0.3s ease, text-shadow 0.3s ease;
+            animation: float 3s ease-in-out infinite;
+            user-select: none;
+        }
+
+        .letter:hover {
+            transform: scale(1.3) translateZ(50px);
+            text-shadow: 
+                0 0 30px rgba(255, 255, 0, 1),
+                0 0 60px rgba(255, 255, 0, 0.8),
+                0 0 90px rgba(255, 0, 255, 0.6),
+                0 0 120px rgba(0, 255, 255, 0.4);
+        }
+
+        .letter.clicked {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotateY(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotateY(180deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1) rotateZ(0deg);
+            }
+            50% {
+                transform: scale(1.5) rotateZ(360deg);
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,0,255,0.5) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0.8;
+            }
+            50% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+            animation: explode 0.6s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(3) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .space {
+            width: 40px;
         }
     </style>
 </head>
 <body>
-    <div id="canvas-container"></div>
+    <div id="scene-container">
+        <div id="text-container"></div>
+    </div>
     <div id="info">🎮 Team Vie 3D Interactive Experience 🎮</div>
     <div id="instructions">
-        Use your mouse to rotate the view | Click on letters to interact | Scroll to zoom
+        Move your mouse to rotate the view | Click on letters to interact | Scroll to zoom
     </div>
     <div id="score">Score: <span id="score-value">0</span></div>
-    <div class="loading" id="loading">Loading 3D Scene...</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
         // Game state
         let score = 0;
-        let scene, camera, renderer, textMeshes = [], particles = [];
-        let mouseX = 0, mouseY = 0;
-        let targetRotationX = 0, targetRotationY = 0;
-        let currentRotationX = 0, currentRotationY = 0;
-        let raycaster, mouse, interactiveObjects = [];
+        let mouseX = 0;
+        let mouseY = 0;
+        let zoomLevel = 1;
+        const textContainer = document.getElementById('text-container');
+        const sceneContainer = document.getElementById('scene-container');
 
-        // Initialize Three.js scene
-        function init() {
-            // Scene setup
-            scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x1e3c72, 10, 50);
-
-            // Camera setup
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 15;
-
-            // Renderer setup
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0);
-            document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-            // Raycaster for mouse interaction
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-
-            // Lighting
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-
-            const pointLight1 = new THREE.PointLight(0xff00ff, 2, 100);
-            pointLight1.position.set(10, 10, 10);
-            scene.add(pointLight1);
-
-            const pointLight2 = new THREE.PointLight(0x00ffff, 2, 100);
-            pointLight2.position.set(-10, -10, 10);
-            scene.add(pointLight2);
-
-            const pointLight3 = new THREE.PointLight(0xffff00, 1.5, 100);
-            pointLight3.position.set(0, 10, -10);
-            scene.add(pointLight3);
-
-            // Create 3D text
-            createText();
-
-            // Create particle system
-            createParticles();
-
-            // Event listeners
-            document.addEventListener('mousemove', onMouseMove, false);
-            document.addEventListener('click', onMouseClick, false);
-            window.addEventListener('resize', onWindowResize, false);
-            document.addEventListener('wheel', onMouseWheel, false);
-
-            // Hide loading message
-            document.getElementById('loading').style.display = 'none';
-
-            // Start animation
-            animate();
-        }
-
+        // Create 3D text
         function createText() {
             const text = "TEAM VIE";
-            const letters = text.split('');
             
-            // Create each letter as a separate 3D object
-            letters.forEach((letter, index) => {
-                if (letter === ' ') {
-                    // Add space offset
-                    return;
-                }
-
-                // Create text geometry using TextGeometry (simplified approach)
-                const geometry = new THREE.BoxGeometry(1.5, 2, 0.5);
+            text.split('').forEach((char, index) => {
+                const letterElement = document.createElement('div');
                 
-                // Create material with gradient-like effect
-                const materials = [
-                    new THREE.MeshPhongMaterial({ color: 0xff00ff, shininess: 100 }),
-                    new THREE.MeshPhongMaterial({ color: 0xff00ff, shininess: 100 }),
-                    new THREE.MeshPhongMaterial({ color: 0x00ffff, shininess: 100 }),
-                    new THREE.MeshPhongMaterial({ color: 0x00ffff, shininess: 100 }),
-                    new THREE.MeshPhongMaterial({ color: 0xffff00, shininess: 100 }),
-                    new THREE.MeshPhongMaterial({ color: 0xffff00, shininess: 100 })
-                ];
-                
-                const mesh = new THREE.Mesh(geometry, materials);
-                
-                // Position letters in a row
-                const spacing = 2;
-                const offset = -(text.replace(' ', '').length * spacing) / 2;
-                let actualIndex = index - (text.substring(0, index).match(/ /g) || []).length;
-                mesh.position.x = offset + actualIndex * spacing;
-                mesh.position.y = 0;
-                mesh.position.z = 0;
-                
-                // Add custom properties for animation
-                mesh.userData = {
-                    originalY: 0,
-                    speed: 0.02 + Math.random() * 0.02,
-                    offset: index * 0.5,
-                    hoverScale: 1,
-                    targetScale: 1,
-                    letter: letter
-                };
-                
-                textMeshes.push(mesh);
-                interactiveObjects.push(mesh);
-                scene.add(mesh);
-                
-                // Add edges for a more defined look
-                const edges = new THREE.EdgesGeometry(geometry);
-                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0xffffff }));
-                mesh.add(line);
-            });
-        }
-
-        function createParticles() {
-            const particleCount = 200;
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                positions.push(
-                    (Math.random() - 0.5) * 50,
-                    (Math.random() - 0.5) * 50,
-                    (Math.random() - 0.5) * 50
-                );
-                
-                colors.push(
-                    Math.random(),
-                    Math.random(),
-                    Math.random()
-                );
-            }
-            
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            
-            const material = new THREE.PointsMaterial({
-                size: 0.15,
-                vertexColors: true,
-                transparent: true,
-                opacity: 0.8
-            });
-            
-            const particleSystem = new THREE.Points(geometry, material);
-            scene.add(particleSystem);
-            particles.push(particleSystem);
-        }
-
-        function onMouseMove(event) {
-            mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-            mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            targetRotationX = mouseY * 0.5;
-            targetRotationY = mouseX * 0.5;
-            
-            // Update mouse for raycaster
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        }
-
-        function onMouseClick(event) {
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactiveObjects);
-            
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                
-                // Animate the clicked object
-                object.userData.targetScale = 1.5;
-                
-                // Add to score
-                score += 10;
-                document.getElementById('score-value').textContent = score;
-                
-                // Add color change animation
-                const originalMaterials = object.material;
-                if (Array.isArray(originalMaterials)) {
-                    originalMaterials.forEach(mat => {
-                        mat.emissive.setHex(0xffffff);
-                        setTimeout(() => {
-                            mat.emissive.setHex(0x000000);
-                        }, 200);
+                if (char === ' ') {
+                    letterElement.className = 'space';
+                } else {
+                    letterElement.className = 'letter';
+                    letterElement.textContent = char;
+                    letterElement.style.animationDelay = `${index * 0.1}s`;
+                    
+                    // Add click handler
+                    letterElement.addEventListener('click', function(e) {
+                        onLetterClick(this, e);
                     });
                 }
                 
-                // Create explosion effect
-                createExplosion(object.position);
-            }
-        }
-
-        function createExplosion(position) {
-            const particleCount = 20;
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            
-            for (let i = 0; i < particleCount; i++) {
-                positions.push(position.x, position.y, position.z);
-                colors.push(Math.random(), Math.random(), Math.random());
-            }
-            
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            
-            const material = new THREE.PointsMaterial({
-                size: 0.3,
-                vertexColors: true,
-                transparent: true,
-                opacity: 1
+                textContainer.appendChild(letterElement);
             });
+        }
+
+        // Handle letter click
+        function onLetterClick(letter, event) {
+            // Add score
+            score += 10;
+            document.getElementById('score-value').textContent = score;
             
-            const explosion = new THREE.Points(geometry, material);
-            scene.add(explosion);
+            // Add clicked animation
+            letter.classList.add('clicked');
+            setTimeout(() => {
+                letter.classList.remove('clicked');
+            }, 500);
             
-            // Animate explosion
-            let frame = 0;
-            const animate = () => {
-                frame++;
-                const pos = geometry.attributes.position.array;
-                for (let i = 0; i < particleCount * 3; i += 3) {
-                    pos[i] += (Math.random() - 0.5) * 0.5;
-                    pos[i + 1] += (Math.random() - 0.5) * 0.5;
-                    pos[i + 2] += (Math.random() - 0.5) * 0.5;
-                }
-                geometry.attributes.position.needsUpdate = true;
-                material.opacity -= 0.05;
+            // Create explosion effect
+            createExplosion(event.clientX, event.clientY);
+            
+            // Change color temporarily
+            const originalTextShadow = letter.style.textShadow;
+            letter.style.textShadow = `
+                0 0 40px rgba(255, 255, 0, 1),
+                0 0 80px rgba(255, 255, 0, 0.8),
+                0 0 120px rgba(255, 0, 255, 0.6)
+            `;
+            setTimeout(() => {
+                letter.style.textShadow = originalTextShadow;
+            }, 300);
+        }
+
+        // Create explosion effect
+        function createExplosion(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'explosion';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.width = '10px';
+                particle.style.height = '10px';
+                particle.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                particle.style.borderRadius = '50%';
                 
-                if (frame < 20) {
-                    requestAnimationFrame(animate);
-                } else {
-                    scene.remove(explosion);
-                }
-            };
-            animate();
+                const angle = (Math.PI * 2 * i) / 12;
+                const velocity = 100 + Math.random() * 50;
+                const tx = Math.cos(angle) * velocity;
+                const ty = Math.sin(angle) * velocity;
+                
+                particle.style.setProperty('--tx', tx + 'px');
+                particle.style.setProperty('--ty', ty + 'px');
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.remove();
+                }, 600);
+            }
         }
 
-        function onMouseWheel(event) {
-            camera.position.z += event.deltaY * 0.01;
-            camera.position.z = Math.max(5, Math.min(30, camera.position.z));
+        // Create floating particles in background
+        function createParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 4 + 's';
+                particle.style.animationDuration = (3 + Math.random() * 3) + 's';
+                sceneContainer.appendChild(particle);
+            }
         }
 
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+        // Mouse move handler for 3D rotation
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+            mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
+            
+            updateRotation();
         }
 
+        // Update 3D rotation based on mouse position
+        function updateRotation() {
+            const rotateY = mouseX * 30;
+            const rotateX = -mouseY * 30;
+            
+            textContainer.style.transform = `
+                translate(-50%, -50%) 
+                rotateY(${rotateY}deg) 
+                rotateX(${rotateX}deg)
+                scale(${zoomLevel})
+            `;
+        }
+
+        // Scroll handler for zoom
+        function onScroll(event) {
+            event.preventDefault();
+            zoomLevel += event.deltaY * -0.001;
+            zoomLevel = Math.min(Math.max(0.5, zoomLevel), 2);
+            updateRotation();
+        }
+
+        // Continuous animation
         function animate() {
+            // Add automatic rotation animation
+            const time = Date.now() * 0.0005;
+            const letters = document.querySelectorAll('.letter');
+            
+            letters.forEach((letter, index) => {
+                const offset = index * 0.5;
+                const y = Math.sin(time * 2 + offset) * 10;
+                const z = Math.cos(time + offset) * 20;
+                
+                letter.style.transform = `translateY(${y}px) translateZ(${z}px) rotateY(${time * 20}deg)`;
+            });
+            
             requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        function init() {
+            createText();
+            createParticles();
             
-            const time = Date.now() * 0.001;
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('wheel', onScroll, { passive: false });
             
-            // Smooth camera rotation based on mouse
-            currentRotationX += (targetRotationX - currentRotationX) * 0.05;
-            currentRotationY += (targetRotationY - currentRotationY) * 0.05;
-            
-            // Animate text meshes
-            textMeshes.forEach((mesh, index) => {
-                // Floating animation
-                mesh.position.y = mesh.userData.originalY + Math.sin(time * mesh.userData.speed * 5 + mesh.userData.offset) * 0.5;
-                
-                // Rotation animation
-                mesh.rotation.x = currentRotationX + Math.sin(time + mesh.userData.offset) * 0.1;
-                mesh.rotation.y = currentRotationY + time * 0.5 + mesh.userData.offset;
-                mesh.rotation.z = Math.sin(time * 0.5 + mesh.userData.offset) * 0.1;
-                
-                // Scale animation (for hover/click effect)
-                mesh.userData.hoverScale += (mesh.userData.targetScale - mesh.userData.hoverScale) * 0.1;
-                mesh.scale.set(mesh.userData.hoverScale, mesh.userData.hoverScale, mesh.userData.hoverScale);
-                
-                // Reset target scale
-                if (Math.abs(mesh.userData.targetScale - 1) > 0.01) {
-                    mesh.userData.targetScale += (1 - mesh.userData.targetScale) * 0.05;
-                }
-            });
-            
-            // Animate particles
-            particles.forEach(particleSystem => {
-                particleSystem.rotation.y += 0.001;
-                particleSystem.rotation.x += 0.0005;
-            });
-            
-            // Check for hover effects
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactiveObjects);
-            
-            // Reset all hover states
-            textMeshes.forEach(mesh => {
-                if (mesh.userData.targetScale === 1) {
-                    // No interaction
-                }
-            });
-            
-            // Apply hover effect
-            if (intersects.length > 0) {
-                const object = intersects[0].object;
-                if (object.userData.targetScale === 1) {
-                    object.userData.targetScale = 1.2;
-                }
-                document.body.style.cursor = 'pointer';
-            } else {
-                document.body.style.cursor = 'default';
-            }
-            
-            renderer.render(scene, camera);
+            animate();
         }
 
         // Start the application
