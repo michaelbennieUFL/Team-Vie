@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Vie - 3D Interactive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+            perspective: 1000px;
+        }
+
+        #scene-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            font-size: 18px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 15px 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            text-align: center;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        #text-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transform-style: preserve-3d;
+            display: flex;
+            gap: 20px;
+        }
+
+        .letter {
+            font-size: 100px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 
+                0 0 20px rgba(255, 0, 255, 0.8),
+                0 0 40px rgba(255, 0, 255, 0.6),
+                0 0 60px rgba(0, 255, 255, 0.6),
+                0 0 80px rgba(0, 255, 255, 0.4);
+            transform-style: preserve-3d;
+            cursor: pointer;
+            transition: transform 0.3s ease, text-shadow 0.3s ease;
+            animation: float 3s ease-in-out infinite;
+            user-select: none;
+        }
+
+        .letter:hover {
+            transform: scale(1.3) translateZ(50px);
+            text-shadow: 
+                0 0 30px rgba(255, 255, 0, 1),
+                0 0 60px rgba(255, 255, 0, 0.8),
+                0 0 90px rgba(255, 0, 255, 0.6),
+                0 0 120px rgba(0, 255, 255, 0.4);
+        }
+
+        .letter.clicked {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotateY(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotateY(180deg);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1) rotateZ(0deg);
+            }
+            50% {
+                transform: scale(1.5) rotateZ(360deg);
+            }
+        }
+
+        .particle {
+            position: absolute;
+            width: 5px;
+            height: 5px;
+            background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,0,255,0.5) 50%, transparent 100%);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes particleFloat {
+            0%, 100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0.8;
+            }
+            50% {
+                transform: translateY(-100vh) translateX(50px);
+                opacity: 0;
+            }
+        }
+
+        .explosion {
+            position: absolute;
+            pointer-events: none;
+            animation: explode 0.6s ease-out forwards;
+        }
+
+        @keyframes explode {
+            0% {
+                transform: scale(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(3) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .space {
+            width: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scene-container">
+        <div id="text-container"></div>
+    </div>
+    <div id="info">🎮 Team Vie 3D Interactive Experience 🎮</div>
+    <div id="instructions">
+        Move your mouse to rotate the view | Click on letters to interact | Scroll to zoom
+    </div>
+    <div id="score">Score: <span id="score-value">0</span></div>
+
+    <script>
+        // Game state
+        let score = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+        let zoomLevel = 1;
+        const textContainer = document.getElementById('text-container');
+        const sceneContainer = document.getElementById('scene-container');
+
+        // Create 3D text
+        function createText() {
+            const text = "TEAM VIE";
+            
+            text.split('').forEach((char, index) => {
+                const letterElement = document.createElement('div');
+                
+                if (char === ' ') {
+                    letterElement.className = 'space';
+                } else {
+                    letterElement.className = 'letter';
+                    letterElement.textContent = char;
+                    letterElement.style.animationDelay = `${index * 0.1}s`;
+                    
+                    // Add click handler
+                    letterElement.addEventListener('click', function(e) {
+                        onLetterClick(this, e);
+                    });
+                }
+                
+                textContainer.appendChild(letterElement);
+            });
+        }
+
+        // Handle letter click
+        function onLetterClick(letter, event) {
+            // Add score
+            score += 10;
+            document.getElementById('score-value').textContent = score;
+            
+            // Add clicked animation
+            letter.classList.add('clicked');
+            setTimeout(() => {
+                letter.classList.remove('clicked');
+            }, 500);
+            
+            // Create explosion effect
+            createExplosion(event.clientX, event.clientY);
+            
+            // Change color temporarily
+            const defaultShadow = `
+                0 0 20px rgba(255, 0, 255, 0.8),
+                0 0 40px rgba(255, 0, 255, 0.6),
+                0 0 60px rgba(0, 255, 255, 0.6),
+                0 0 80px rgba(0, 255, 255, 0.4)
+            `;
+            letter.style.textShadow = `
+                0 0 40px rgba(255, 255, 0, 1),
+                0 0 80px rgba(255, 255, 0, 0.8),
+                0 0 120px rgba(255, 0, 255, 0.6)
+            `;
+            setTimeout(() => {
+                letter.style.textShadow = defaultShadow;
+            }, 300);
+        }
+
+        // Create explosion effect
+        function createExplosion(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'explosion';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                particle.style.width = '10px';
+                particle.style.height = '10px';
+                particle.style.background = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                particle.style.borderRadius = '50%';
+                
+                document.body.appendChild(particle);
+                
+                setTimeout(() => {
+                    particle.remove();
+                }, 600);
+            }
+        }
+
+        // Create floating particles in background
+        function createParticles() {
+            for (let i = 0; i < 50; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 4 + 's';
+                particle.style.animationDuration = (3 + Math.random() * 3) + 's';
+                sceneContainer.appendChild(particle);
+            }
+        }
+
+        // Mouse move handler for 3D rotation
+        function onMouseMove(event) {
+            mouseX = (event.clientX / window.innerWidth - 0.5) * 2;
+            mouseY = (event.clientY / window.innerHeight - 0.5) * 2;
+            
+            updateRotation();
+        }
+
+        // Update 3D rotation based on mouse position
+        function updateRotation() {
+            const rotateY = mouseX * 30;
+            const rotateX = -mouseY * 30;
+            
+            textContainer.style.transform = `
+                translate(-50%, -50%) 
+                rotateY(${rotateY}deg) 
+                rotateX(${rotateX}deg)
+                scale(${zoomLevel})
+            `;
+        }
+
+        // Scroll handler for zoom
+        function onScroll(event) {
+            event.preventDefault();
+            zoomLevel += event.deltaY * -0.001;
+            zoomLevel = Math.min(Math.max(0.5, zoomLevel), 2);
+            updateRotation();
+        }
+
+        // Continuous animation
+        function animate() {
+            // Note: Removed direct transform manipulation to avoid conflicts with CSS animations
+            // The letters now use pure CSS animations defined in the stylesheet
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        function init() {
+            createText();
+            createParticles();
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('wheel', onScroll, { passive: false });
+            
+            animate();
+        }
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
