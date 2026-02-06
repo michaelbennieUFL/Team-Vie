@@ -1,0 +1,19 @@
+# NOTE: This compose.yml file is TEMPORARY. We will consolidate
+# the entire app (frontend, backend, and database) into one compose
+# file later in the development cycle. For now, this simply spins
+# up a Postgres instance for development purposes.
+
+services:
+  db:
+    image: postgres:18
+    container_name: vie-db
+    volumes:
+      - .\data:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: CompeteToAchieve
+    restart: unless-stopped
+
+# USER: vie
+# PASS: CompeteToAdvance
