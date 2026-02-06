@@ -1,1 +1,1 @@
-# Team-Vie
+# Vie: a competitive productivity app
