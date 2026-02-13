@@ -1,0 +1,224 @@
+const API_BASE_URL = 'http://localhost:8000/api';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  profile: {
+    points: number;
+    current_streak: number;
+    longest_streak: number;
+    last_task_completed_date: string | null;
+    region: string;
+  };
+}
+
+export interface Task {
+  id: number;
+  title: string;
+  description: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  points_value: number;
+  is_completed: boolean;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  due_date: string | null;
+}
+
+export interface Competition {
+  id: number;
+  challenger: number;
+  challenger_username: string;
+  opponent: number;
+  opponent_username: string;
+  status: 'PENDING' | 'ACTIVE' | 'COMPLETED';
+  challenger_score: number;
+  opponent_score: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  tasks: CompetitionTask[];
+}
+
+export interface CompetitionTask {
+  id: number;
+  title: string;
+  description: string;
+  points_value: number;
+  challenger_completed: boolean;
+  opponent_completed: boolean;
+  created_at: string;
+}
+
+export interface LeaderboardEntry {
+  username: string;
+  points: number;
+  current_streak: number;
+  region: string;
+  rank: number;
+}
+
+class ApiService {
+  private getHeaders(): HeadersInit {
+    return {
+      'Content-Type': 'application/json',
+    };
+  }
+
+  private async handleResponse<T>(response: Response): Promise<T> {
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  // Authentication
+  async register(data: {
+    username: string;
+    email: string;
+    password: string;
+    password_confirm: string;
+    first_name?: string;
+    last_name?: string;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/users/register/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<{ message: string; user: User }>(response);
+  }
+
+  async login(username: string, password: string) {
+    const response = await fetch(`${API_BASE_URL}/users/login/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ username, password }),
+    });
+    return this.handleResponse<{ message: string; user: User }>(response);
+  }
+
+  async logout() {
+    const response = await fetch(`${API_BASE_URL}/users/logout/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string }>(response);
+  }
+
+  async getCurrentUser() {
+    const response = await fetch(`${API_BASE_URL}/users/me/`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<User>(response);
+  }
+
+  // Tasks
+  async getTasks() {
+    const response = await fetch(`${API_BASE_URL}/tasks/`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<Task[]>(response);
+  }
+
+  async createTask(data: Omit<Task, 'id' | 'is_completed' | 'completed_at' | 'created_at' | 'updated_at'>) {
+    const response = await fetch(`${API_BASE_URL}/tasks/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<Task>(response);
+  }
+
+  async updateTask(id: number, data: Partial<Task>) {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<Task>(response);
+  }
+
+  async deleteTask(id: number) {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  }
+
+  async completeTask(id: number) {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/complete/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string; points_earned: number; task: Task }>(response);
+  }
+
+  // Leaderboard
+  async getLeaderboard(region?: string) {
+    const url = region 
+      ? `${API_BASE_URL}/users/leaderboard/?region=${encodeURIComponent(region)}`
+      : `${API_BASE_URL}/users/leaderboard/`;
+    const response = await fetch(url, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<LeaderboardEntry[]>(response);
+  }
+
+  // Competitions
+  async getCompetitions() {
+    const response = await fetch(`${API_BASE_URL}/competitions/`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<Competition[]>(response);
+  }
+
+  async createCompetition(opponentId: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ opponent: opponentId }),
+    });
+    return this.handleResponse<Competition>(response);
+  }
+
+  async acceptCompetition(id: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${id}/accept/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+
+  async completeCompetitionTask(competitionId: number, taskId: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${competitionId}/complete_task/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ task_id: taskId }),
+    });
+    return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+}
+
+export const apiService = new ApiService();
