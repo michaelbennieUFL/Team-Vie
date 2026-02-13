@@ -38,7 +38,10 @@ class Task(models.Model):
             today = date.today()
             if profile.last_task_completed_date:
                 days_since_last = (today - profile.last_task_completed_date).days
-                if days_since_last == 1:
+                if days_since_last == 0:
+                    # Same day, maintain streak
+                    pass
+                elif days_since_last == 1:
                     profile.current_streak += 1
                 elif days_since_last > 1:
                     profile.current_streak = 1

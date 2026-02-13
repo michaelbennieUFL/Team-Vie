@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import type { Competition } from '../services/api';
+import type { Competition, User } from '../services/api';
 
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -9,14 +9,25 @@ export default function Competitions() {
     const [opponentId, setOpponentId] = useState('');
     const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
     const [ws, setWs] = useState<WebSocket | null>(null);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
-        loadCompetitions();
+        loadUserAndCompetitions();
         return () => {
             if (ws) ws.close();
         };
     }, []);
+
+    const loadUserAndCompetitions = async () => {
+        try {
+            const user = await apiService.getCurrentUser();
+            setCurrentUser(user);
+            await loadCompetitions();
+        } catch (error) {
+            console.error('Failed to load user:', error);
+        }
+    };
 
     useEffect(() => {
         if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
@@ -191,7 +202,10 @@ export default function Competitions() {
                                                 {selectedCompetition.opponent_username}: {task.opponent_completed ? '✓' : '○'}
                                             </span>
                                         </div>
-                                        {!task.challenger_completed && !task.opponent_completed && (
+                                        {currentUser && (
+                                            (currentUser.id === selectedCompetition.challenger && !task.challenger_completed) ||
+                                            (currentUser.id === selectedCompetition.opponent && !task.opponent_completed)
+                                        ) && (
                                             <button onClick={() => handleCompleteTask(task.id)}>
                                                 Complete
                                             </button>
