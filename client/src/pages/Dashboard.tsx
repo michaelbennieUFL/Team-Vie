@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiService, User, Task } from '../services/api';
+import { apiService } from '../services/api';
+import type { User, Task } from '../services/api';
 
 export default function Dashboard() {
     const [user, setUser] = useState<User | null>(null);

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiService, LeaderboardEntry } from '../services/api';
+import { apiService } from '../services/api';
+import type { LeaderboardEntry } from '../services/api';
 
 export default function Leaderboard() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);

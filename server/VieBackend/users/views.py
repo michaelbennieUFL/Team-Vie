@@ -6,8 +6,15 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import F, Window
 from django.db.models.functions import Rank
+from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import UserProfile
 from .serializers import UserSerializer, RegisterSerializer, LeaderboardSerializer
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@ensure_csrf_cookie
+def csrf_view(request):
+    return Response({'detail': 'CSRF cookie set'})
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiService, Competition } from '../services/api';
+import { apiService } from '../services/api';
+import type { Competition } from '../services/api';
 
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);

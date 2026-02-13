@@ -62,10 +62,43 @@ export interface LeaderboardEntry {
 }
 
 class ApiService {
+  private csrfTokenFetched = false;
+
+  private async ensureCsrfToken() {
+    if (!this.csrfTokenFetched) {
+      try {
+        await fetch(`${API_BASE_URL}/users/csrf/`, {
+          credentials: 'include',
+        });
+        this.csrfTokenFetched = true;
+      } catch (error) {
+        console.error('Failed to fetch CSRF token:', error);
+      }
+    }
+  }
+
   private getHeaders(): HeadersInit {
-    return {
+    const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
+    
+    // Get CSRF token from cookie
+    const csrfToken = this.getCookie('csrftoken');
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+    
+    return headers;
+  }
+
+  private getCookie(name: string): string | null {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const part = parts.pop();
+      return part ? part.split(';').shift() || null : null;
+    }
+    return null;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
@@ -85,6 +118,7 @@ class ApiService {
     first_name?: string;
     last_name?: string;
   }) {
+    await this.ensureCsrfToken();
     const response = await fetch(`${API_BASE_URL}/users/register/`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -95,6 +129,7 @@ class ApiService {
   }
 
   async login(username: string, password: string) {
+    await this.ensureCsrfToken();
     const response = await fetch(`${API_BASE_URL}/users/login/`, {
       method: 'POST',
       headers: this.getHeaders(),
