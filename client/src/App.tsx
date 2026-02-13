@@ -1,5 +1,6 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import './App.css'
+import LoginPage from './LoginPage'
 
 const tourTabs = [
   {
@@ -190,7 +191,13 @@ const activeChallenges = [
   },
 ]
 
-function LandingPage({ onOpenDashboard }: { onOpenDashboard: () => void }) {
+function LandingPage({
+  onOpenDashboard,
+  onOpenLogin,
+}: {
+  onOpenDashboard: () => void
+  onOpenLogin: () => void
+}) {
   const [activeTab, setActiveTab] = useState('tasks')
   const activeTour = useMemo(
     () => tourTabs.find((tab) => tab.id === activeTab) ?? tourTabs[0],
@@ -213,6 +220,9 @@ function LandingPage({ onOpenDashboard }: { onOpenDashboard: () => void }) {
           <a href="#faq">FAQ</a>
         </nav>
         <div className="nav-actions">
+          <button className="secondary-btn" onClick={onOpenLogin}>
+            Sign in
+          </button>
           <button className="primary-btn" onClick={onOpenDashboard}>
             Start your streak
             <i className="fa-solid fa-arrow-right" />
@@ -1002,13 +1012,22 @@ function DashboardPage({ onBack }: { onBack: () => void }) {
 }
 
 function App() {
-  const [page, setPage] = useState<'landing' | 'dashboard'>('landing')
+  const [page, setPage] = useState<'landing' | 'login' | 'dashboard'>('landing')
 
-  return page === 'landing' ? (
-    <LandingPage onOpenDashboard={() => setPage('dashboard')} />
-  ) : (
-    <DashboardPage onBack={() => setPage('landing')} />
-  )
+  if (page === 'landing') {
+    return (
+      <LandingPage
+        onOpenDashboard={() => setPage('dashboard')}
+        onOpenLogin={() => setPage('login')}
+      />
+    )
+  }
+
+  if (page === 'login') {
+    return <LoginPage onBack={() => setPage('landing')} onLogin={() => setPage('dashboard')} />
+  }
+
+  return <DashboardPage onBack={() => setPage('landing')} />
 }
 
 export default App
