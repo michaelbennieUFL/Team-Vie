@@ -7,6 +7,10 @@ class Server(models.Model):
     description = models.TextField(blank=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_servers')
     created_at = models.DateTimeField(auto_now_add=True)
+    active_competition = models.ForeignKey(
+        'competitions.Competition', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='featured_in_server'
+    )
 
     def __str__(self):
         return self.name

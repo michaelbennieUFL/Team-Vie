@@ -8,7 +8,7 @@ class ServerSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Server
-        fields = ['id', 'name', 'description', 'created_by', 'created_at', 'member_count', 'role']
+        fields = ['id', 'name', 'description', 'created_by', 'created_at', 'member_count', 'role', 'active_competition']
         read_only_fields = ['id', 'created_by', 'created_at']
 
     def get_member_count(self, obj):

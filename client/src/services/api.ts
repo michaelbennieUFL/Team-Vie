@@ -23,6 +23,7 @@ export interface VieServer {
   created_at: string;
   member_count: number;
   role: string | null;
+  active_competition: number | null;
 }
 
 export interface Task {
@@ -37,6 +38,7 @@ export interface Task {
   updated_at: string;
   due_date: string | null;
   server: number | null;
+  recurrence: 'NONE' | 'DAILY' | 'WEEKLY';
 }
 
 export interface Competition {
@@ -71,6 +73,11 @@ export interface LeaderboardEntry {
   current_streak: number;
   region: string;
   rank: number;
+}
+
+export interface UserSearchResult {
+  id: number;
+  username: string;
 }
 
 class ApiService {
@@ -288,6 +295,14 @@ class ApiService {
     return this.handleResponse<VieServer[]>(response);
   }
 
+  async searchServers(query: string) {
+    const response = await fetch(`${API_BASE_URL}/servers/search/?q=${encodeURIComponent(query)}`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<VieServer[]>(response);
+  }
+
   async createServer(data: { name: string; description?: string }) {
     const response = await fetch(`${API_BASE_URL}/servers/`, {
       method: 'POST',
@@ -314,6 +329,25 @@ class ApiService {
       credentials: 'include',
     });
     return this.handleResponse<{ message: string }>(response);
+  }
+
+  async setActiveCompetition(serverId: number, competitionId: number | null) {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/set_active_competition/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ competition_id: competitionId }),
+    });
+    return this.handleResponse<{ message: string }>(response);
+  }
+
+  // Users
+  async searchUsers(query: string) {
+    const response = await fetch(`${API_BASE_URL}/users/search/?q=${encodeURIComponent(query)}`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<UserSearchResult[]>(response);
   }
 }
 

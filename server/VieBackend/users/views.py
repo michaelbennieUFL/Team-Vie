@@ -58,6 +58,18 @@ def current_user_view(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def search_users_view(request):
+    query = request.query_params.get('q', '').strip()
+    if not query:
+        return Response([])
+    users = User.objects.filter(
+        username__icontains=query
+    ).exclude(id=request.user.id)[:20]
+    results = [{'id': u.id, 'username': u.username} for u in users]
+    return Response(results)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def leaderboard_view(request):
     region = request.query_params.get('region', None)
     server_id = request.query_params.get('server', None)

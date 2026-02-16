@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Leaderboard from './pages/Leaderboard';
 import Competitions from './pages/Competitions';
 import Overview from './pages/Overview';
+import Schedule from './pages/Schedule';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/overview" element={<Overview />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/competitions" element={<Competitions />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/" element={<Login />} />
       </Routes>
     </Router>
