@@ -60,10 +60,18 @@ def current_user_view(request):
 @permission_classes([IsAuthenticated])
 def leaderboard_view(request):
     region = request.query_params.get('region', None)
+    server_id = request.query_params.get('server', None)
     
     profiles = UserProfile.objects.select_related('user')
     if region:
         profiles = profiles.filter(region=region)
+    
+    if server_id:
+        from servers.models import ServerMembership
+        member_user_ids = ServerMembership.objects.filter(
+            server_id=server_id
+        ).values_list('user_id', flat=True)
+        profiles = profiles.filter(user_id__in=member_user_ids)
     
     profiles = profiles.annotate(
         rank=Window(expression=Rank(), order_by=F('points').desc())

@@ -1,25 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import type { LeaderboardEntry } from '../services/api';
+import type { LeaderboardEntry, VieServer } from '../services/api';
 
 export default function Leaderboard() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [region, setRegion] = useState('');
+    const [servers, setServers] = useState<VieServer[]>([]);
+    const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadLeaderboard();
-    }, [region]);
+    const loadServers = async () => {
+        try {
+            const data = await apiService.getServers();
+            setServers(data);
+            const saved = localStorage.getItem('selectedServerId');
+            if (saved) setSelectedServerId(Number(saved));
+        } catch (error) {
+            console.error('Failed to load servers:', error);
+        }
+    };
 
     const loadLeaderboard = async () => {
         try {
-            const data = await apiService.getLeaderboard(region || undefined);
+            const data = await apiService.getLeaderboard(region || undefined, selectedServerId);
             setLeaderboard(data);
         } catch (error) {
             console.error('Failed to load leaderboard:', error);
         }
     };
+
+    useEffect(() => {
+        loadServers();
+    }, []);
+
+    useEffect(() => {
+        loadLeaderboard();
+    }, [region, selectedServerId]);
 
     return (
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -28,7 +45,17 @@ export default function Leaderboard() {
                 <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <select
+                    value={selectedServerId || ''}
+                    onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
+                    style={{ padding: '8px' }}
+                >
+                    <option value="">All Servers</option>
+                    {servers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                </select>
                 <input
                     type="text"
                     placeholder="Filter by region (optional)"

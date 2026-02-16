@@ -15,6 +15,16 @@ export interface User {
   };
 }
 
+export interface VieServer {
+  id: number;
+  name: string;
+  description: string;
+  created_by: number;
+  created_at: string;
+  member_count: number;
+  role: string | null;
+}
+
 export interface Task {
   id: number;
   title: string;
@@ -26,6 +36,7 @@ export interface Task {
   created_at: string;
   updated_at: string;
   due_date: string | null;
+  server: number | null;
 }
 
 export interface Competition {
@@ -41,6 +52,7 @@ export interface Competition {
   started_at: string | null;
   completed_at: string | null;
   tasks: CompetitionTask[];
+  server: number | null;
 }
 
 export interface CompetitionTask {
@@ -157,8 +169,11 @@ class ApiService {
   }
 
   // Tasks
-  async getTasks() {
-    const response = await fetch(`${API_BASE_URL}/tasks/`, {
+  async getTasks(serverId?: number) {
+    const url = serverId 
+      ? `${API_BASE_URL}/tasks/?server=${serverId}`
+      : `${API_BASE_URL}/tasks/`;
+    const response = await fetch(url, {
       headers: this.getHeaders(),
       credentials: 'include',
     });
@@ -206,9 +221,13 @@ class ApiService {
   }
 
   // Leaderboard
-  async getLeaderboard(region?: string) {
-    const url = region 
-      ? `${API_BASE_URL}/users/leaderboard/?region=${encodeURIComponent(region)}`
+  async getLeaderboard(region?: string, serverId?: number) {
+    const params = new URLSearchParams();
+    if (region) params.set('region', region);
+    if (serverId) params.set('server', String(serverId));
+    const query = params.toString();
+    const url = query
+      ? `${API_BASE_URL}/users/leaderboard/?${query}`
       : `${API_BASE_URL}/users/leaderboard/`;
     const response = await fetch(url, {
       headers: this.getHeaders(),
@@ -218,20 +237,25 @@ class ApiService {
   }
 
   // Competitions
-  async getCompetitions() {
-    const response = await fetch(`${API_BASE_URL}/competitions/`, {
+  async getCompetitions(serverId?: number) {
+    const url = serverId
+      ? `${API_BASE_URL}/competitions/?server=${serverId}`
+      : `${API_BASE_URL}/competitions/`;
+    const response = await fetch(url, {
       headers: this.getHeaders(),
       credentials: 'include',
     });
     return this.handleResponse<Competition[]>(response);
   }
 
-  async createCompetition(opponentId: number) {
+  async createCompetition(opponentId: number, serverId?: number) {
+    const body: Record<string, number> = { opponent: opponentId };
+    if (serverId) body.server = serverId;
     const response = await fetch(`${API_BASE_URL}/competitions/`, {
       method: 'POST',
       headers: this.getHeaders(),
       credentials: 'include',
-      body: JSON.stringify({ opponent: opponentId }),
+      body: JSON.stringify(body),
     });
     return this.handleResponse<Competition>(response);
   }
@@ -253,6 +277,43 @@ class ApiService {
       body: JSON.stringify({ task_id: taskId }),
     });
     return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+
+  // Servers
+  async getServers() {
+    const response = await fetch(`${API_BASE_URL}/servers/`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<VieServer[]>(response);
+  }
+
+  async createServer(data: { name: string; description?: string }) {
+    const response = await fetch(`${API_BASE_URL}/servers/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+    return this.handleResponse<VieServer>(response);
+  }
+
+  async joinServer(serverId: number) {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/join/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string }>(response);
+  }
+
+  async leaveServer(serverId: number) {
+    const response = await fetch(`${API_BASE_URL}/servers/${serverId}/leave/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string }>(response);
   }
 }
 

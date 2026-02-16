@@ -1,0 +1,18 @@
+name: vie
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+    - django==6.0.2
+    - djangorestframework==3.16.1
+    - django-cors-headers==4.9.0
+    - channels==4.3.2
+    - channels-redis==4.3.0
+    - daphne==4.2.1
+    - psycopg2-binary==2.9.11
+    - sqlparse==0.5.5
+    - asgiref==3.11.1
+    - tzdata==2025.3

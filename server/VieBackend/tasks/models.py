@@ -11,6 +11,7 @@ class Task(models.Model):
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
+    server = models.ForeignKey('servers.Server', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')

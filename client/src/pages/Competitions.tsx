@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import type { Competition, User } from '../services/api';
+import type { Competition, User, VieServer } from '../services/api';
 
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -10,30 +10,22 @@ export default function Competitions() {
     const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
     const [ws, setWs] = useState<WebSocket | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [servers, setServers] = useState<VieServer[]>([]);
+    const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadUserAndCompetitions();
-        return () => {
-            if (ws) ws.close();
-        };
-    }, []);
-
-    const loadUserAndCompetitions = async () => {
+    const loadCompetitions = async () => {
         try {
-            const user = await apiService.getCurrentUser();
-            setCurrentUser(user);
-            await loadCompetitions();
+            const data = await apiService.getCompetitions(selectedServerId);
+            setCompetitions(data);
+            if (selectedCompetition) {
+                const updated = data.find(c => c.id === selectedCompetition.id);
+                if (updated) setSelectedCompetition(updated);
+            }
         } catch (error) {
-            console.error('Failed to load user:', error);
+            console.error('Failed to load competitions:', error);
         }
     };
-
-    useEffect(() => {
-        if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
-            connectWebSocket(selectedCompetition.id);
-        }
-    }, [selectedCompetition]);
 
     const connectWebSocket = (competitionId: number) => {
         if (ws) ws.close();
@@ -58,23 +50,41 @@ export default function Competitions() {
         setWs(websocket);
     };
 
-    const loadCompetitions = async () => {
+    const loadUserAndCompetitions = async () => {
         try {
-            const data = await apiService.getCompetitions();
-            setCompetitions(data);
-            if (selectedCompetition) {
-                const updated = data.find(c => c.id === selectedCompetition.id);
-                if (updated) setSelectedCompetition(updated);
-            }
+            const user = await apiService.getCurrentUser();
+            setCurrentUser(user);
+            const serversData = await apiService.getServers();
+            setServers(serversData);
+            const saved = localStorage.getItem('selectedServerId');
+            if (saved) setSelectedServerId(Number(saved));
+            await loadCompetitions();
         } catch (error) {
-            console.error('Failed to load competitions:', error);
+            console.error('Failed to load user:', error);
         }
     };
+
+    useEffect(() => {
+        loadUserAndCompetitions();
+        return () => {
+            if (ws) ws.close();
+        };
+    }, []);
+
+    useEffect(() => {
+        loadCompetitions();
+    }, [selectedServerId]);
+
+    useEffect(() => {
+        if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
+            connectWebSocket(selectedCompetition.id);
+        }
+    }, [selectedCompetition]);
 
     const handleCreateCompetition = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await apiService.createCompetition(parseInt(opponentId));
+            await apiService.createCompetition(parseInt(opponentId), selectedServerId);
             setShowCreate(false);
             setOpponentId('');
             await loadCompetitions();
@@ -149,6 +159,19 @@ export default function Competitions() {
                     <button type="submit">Create</button>
                 </form>
             )}
+
+            <div style={{ marginBottom: '20px' }}>
+                <select
+                    value={selectedServerId || ''}
+                    onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
+                    style={{ padding: '8px' }}
+                >
+                    <option value="">All Servers</option>
+                    {servers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                </select>
+            </div>
 
             {selectedCompetition ? (
                 <div>
