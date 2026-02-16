@@ -1,35 +1,41 @@
 import React, {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
 import './Login.css';
+import { apiService } from '../services/api';
 
 
 export default function Login() {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        // TODO: Implement actual login logic here 
-        // using temporary console log for now for testing
-        if (email === 'test@gmail.com' && password === 'test') {
+        setError('');
+        
+        try {
+            const response = await apiService.login(username, password);
+            localStorage.setItem('user', JSON.stringify(response.user));
             navigate('/dashboard');
-        } else {
-            alert('Invalid credentials');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Login failed');
         }
     };
 
-    // apply css styles to login page ./pages/Login.css
     return(
         <div className='login-container'>
         <h1>WELCOME TO VIE</h1>
         <h3>Gamify your learning experience!</h3>
+        
+        {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
+        
         <form className='login-form' onSubmit={handleLogin}>
             <input 
-                type="email" 
-                placeholder="Email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
+                type="text" 
+                placeholder="Username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
                 required 
             />
             <input 

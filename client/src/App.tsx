@@ -3,8 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Leaderboard from './pages/Leaderboard';
+import Competitions from './pages/Competitions';
 
-// Main App Component that sets up routing for the application
 function App() {
   return (
     <Router>
@@ -12,10 +13,11 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Login />} /> {/* Default route redirects to Login */} 
+        <Route path="/leaderboard" element={<Leaderboard />} />
+        <Route path="/competitions" element={<Competitions />} />
+        <Route path="/" element={<Login />} />
       </Routes>
     </Router>
-  
   );
 }
 
