@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Leaderboard from './pages/Leaderboard';
 import Competitions from './pages/Competitions';
+import Overview from './pages/Overview';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/overview" element={<Overview />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/competitions" element={<Competitions />} />
         <Route path="/" element={<Login />} />

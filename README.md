@@ -1,6 +1,6 @@
 # Vie: A Competitive Productivity App
 
-Vie is a gamified productivity application that helps users stay motivated through task management, reward systems, streak tracking, and friendly 1v1 competitions.
+Vie is a gamified productivity application that helps users stay motivated through task management, reward systems, streak tracking, and friendly 1v1 competitions. Organize your work into **servers** (like Discord) — each with its own tasks, leaderboard, and competitions.
 
 ## Features
 
@@ -9,12 +9,20 @@ Vie is a gamified productivity application that helps users stay motivated throu
 - Secure login/logout system
 - Password management
 
+### 📂 Servers (Workspaces)
+- Create and join servers (like Discord)
+- Default servers: **COP 2000**, **ANT 3030**, **Personal**
+- Dropdown server selector on Dashboard
+- Each server has its own tasks, leaderboard, and competitions
+- Overview page shows all tasks across all servers
+
 ### 📝 Task Management
 - Create, edit, and delete tasks
 - Assign priority levels (Low, Medium, High)
 - Set due dates
 - Custom point values for tasks
 - Complete tasks to earn points
+- Tasks are scoped to the selected server
 
 ### 🏆 Reward & Point System
 - Earn points by completing tasks
@@ -28,7 +36,7 @@ Vie is a gamified productivity application that helps users stay motivated throu
 
 ### 📊 Leaderboards
 - Global leaderboard with top users
-- Filter by region
+- Filter by server or region
 - Real-time ranking updates
 - See user points and streaks
 
@@ -37,6 +45,15 @@ Vie is a gamified productivity application that helps users stay motivated throu
 - Real-time updates using WebSocket
 - Track scores live as tasks are completed
 - Accept or decline competition invites
+- Competitions are scoped to servers
+
+## Default Login Credentials
+
+| Username | Password   |
+|----------|------------|
+| **demo** | **demo1234** |
+
+Additional seeded users: `alice`, `bob`, `charlie`, `diana` (passwords follow the pattern `{username}1234`, e.g., `alice1234`).
 
 ## Technology Stack
 
@@ -54,15 +71,44 @@ Vie is a gamified productivity application that helps users stay motivated throu
 - **Vite** - Build tool and dev server
 - **React Router** - Navigation
 
+### Environment
+- **Mamba / Conda** - Python environment management
+
 ## Getting Started
 
 ### Prerequisites
-- Python 3.12+
+- [Mamba](https://mamba.readthedocs.io/) or [Conda](https://docs.conda.io/) (for Python environment)
 - Node.js 18+
 - Docker and Docker Compose
-- Redis (for WebSocket support)
+- Redis (optional, for WebSocket support)
 
-### Installation
+### Quick Install
+
+```bash
+git clone https://github.com/michaelbennieUFL/Team-Vie.git
+cd Team-Vie
+./install.sh
+```
+
+The install script will:
+1. Start the PostgreSQL database via Docker
+2. Create a `vie` Python environment using mamba/conda
+3. Run Django migrations
+4. Seed the database with default users, servers, tasks, and competitions
+5. Install frontend npm dependencies
+
+### Quick Start
+
+```bash
+./start.sh
+```
+
+This starts both the frontend and backend servers. Press **Ctrl+C** to stop both.
+
+- **Frontend:** http://localhost:5173
+- **Backend:** http://localhost:8000
+
+### Manual Installation
 
 #### 1. Clone the repository
 ```bash
@@ -85,20 +131,26 @@ docker exec vie-db psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"vie-d
 docker exec vie-db psql -U postgres -d vie-db -c "GRANT ALL ON SCHEMA public TO vie;"
 ```
 
-#### 3. Set up the backend
+#### 3. Set up the Python environment
 ```bash
-cd server
+# Using mamba (recommended)
+mamba env create -f environment.yml
+mamba activate vie
 
-# Install dependencies
-pip install -r requirements.txt
+# Or using conda
+conda env create -f environment.yml
+conda activate vie
+```
 
-cd VieBackend
+#### 4. Set up the backend
+```bash
+cd server/VieBackend
 
 # Run migrations
 python manage.py migrate
 
-# Create a superuser (optional, for admin access)
-python manage.py createsuperuser
+# Seed the database with default data
+python manage.py seed_data
 
 # Start the development server
 python manage.py runserver
@@ -106,7 +158,7 @@ python manage.py runserver
 
 The backend will be available at `http://localhost:8000`
 
-#### 4. Set up the frontend
+#### 5. Set up the frontend
 Open a new terminal:
 ```bash
 cd client
@@ -120,10 +172,9 @@ npm run dev
 
 The frontend will be available at `http://localhost:5173`
 
-#### 5. (Optional) Set up Redis for WebSocket support
+#### 6. (Optional) Set up Redis for WebSocket support
 For 1v1 competition real-time updates:
 ```bash
-# Install and start Redis
 # On Ubuntu/Debian:
 sudo apt-get install redis-server
 sudo systemctl start redis
@@ -131,9 +182,6 @@ sudo systemctl start redis
 # On macOS:
 brew install redis
 brew services start redis
-
-# On Windows:
-# Download from https://redis.io/download
 ```
 
 ### Testing the Connection
@@ -145,12 +193,21 @@ Run the connection test script to verify everything is set up correctly:
 
 ## Usage
 
-### Creating a Task
+### Selecting a Server
 1. Log in to your account
-2. Navigate to the Dashboard
-3. Click "Add Task"
-4. Fill in the task details (title, description, priority, points, due date)
-5. Click "Create Task"
+2. On the Dashboard, use the **server dropdown** (top-left) to select a server
+3. Tasks, leaderboard, and competitions will be scoped to that server
+4. Use **"+ Create Server"** to add a new server
+
+### Viewing All Tasks
+1. Click **"Overview"** in the navigation bar
+2. See all tasks grouped by server across all your servers
+
+### Creating a Task
+1. Select a server from the dropdown
+2. Click "Add Task"
+3. Fill in the task details (title, description, priority, points, due date)
+4. Click "Create Task" — the task will be associated with the selected server
 
 ### Completing a Task
 1. Find the task on your Dashboard
@@ -159,15 +216,17 @@ Run the connection test script to verify everything is set up correctly:
 
 ### Viewing the Leaderboard
 1. From the Dashboard, click "Leaderboard"
-2. View rankings by points
+2. Filter by server using the dropdown
 3. (Optional) Filter by region
+4. View rankings by points
 
 ### Starting a Competition
 1. From the Dashboard, click "Competitions"
-2. Click "New Competition"
-3. Enter the opponent's User ID
-4. Wait for them to accept
-5. Complete tasks together and see scores update in real-time!
+2. Select a server to scope the competition
+3. Click "New Competition"
+4. Enter the opponent's User ID
+5. Wait for them to accept
+6. Complete tasks together and see scores update in real-time!
 
 ## API Endpoints
 
@@ -178,8 +237,15 @@ Run the connection test script to verify everything is set up correctly:
 - `GET /api/users/me/` - Get current user info
 - `GET /api/users/csrf/` - Get CSRF token
 
+### Servers
+- `GET /api/servers/` - List user's servers
+- `POST /api/servers/` - Create a new server
+- `GET /api/servers/{id}/` - Get server details
+- `POST /api/servers/{id}/join/` - Join a server
+- `POST /api/servers/{id}/leave/` - Leave a server
+
 ### Tasks
-- `GET /api/tasks/` - List all user's tasks
+- `GET /api/tasks/` - List all user's tasks (optional `?server=` filter)
 - `POST /api/tasks/` - Create a new task
 - `GET /api/tasks/{id}/` - Get task details
 - `PATCH /api/tasks/{id}/` - Update a task
@@ -187,10 +253,10 @@ Run the connection test script to verify everything is set up correctly:
 - `POST /api/tasks/{id}/complete/` - Complete a task
 
 ### Leaderboard
-- `GET /api/users/leaderboard/` - Get leaderboard (optional `?region=` filter)
+- `GET /api/users/leaderboard/` - Get leaderboard (optional `?region=` and `?server=` filters)
 
 ### Competitions
-- `GET /api/competitions/` - List all competitions
+- `GET /api/competitions/` - List all competitions (optional `?server=` filter)
 - `POST /api/competitions/` - Create a new competition
 - `GET /api/competitions/{id}/` - Get competition details
 - `POST /api/competitions/{id}/accept/` - Accept a competition
@@ -204,12 +270,13 @@ Run the connection test script to verify everything is set up correctly:
 Team-Vie/
 ├── client/                 # React frontend
 │   ├── src/
-│   │   ├── pages/         # Page components
+│   │   ├── pages/         # Page components (Dashboard, Overview, Leaderboard, etc.)
 │   │   ├── services/      # API service layer
 │   │   └── ...
 │   └── ...
 ├── server/                # Django backend
 │   ├── VieBackend/
+│   │   ├── servers/      # Server/workspace management app
 │   │   ├── users/        # User authentication app
 │   │   ├── tasks/        # Task management app
 │   │   ├── competitions/ # Competition app
@@ -217,7 +284,10 @@ Team-Vie/
 │   └── requirements.txt
 ├── database/             # Database configuration
 │   └── compose.yml
-└── test_connection.sh   # Connection test script
+├── environment.yml       # Mamba/Conda Python environment
+├── install.sh            # One-command install script
+├── start.sh              # Start frontend + backend together
+└── test_connection.sh    # Connection test script
 ```
 
 ## Development
@@ -260,3 +330,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - WebSocket support powered by Django Channels
 - Database: PostgreSQL
 - Containerization: Docker
+- Python environment: Mamba/Conda

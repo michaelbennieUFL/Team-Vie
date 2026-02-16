@@ -19,10 +19,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from tasks.views import TaskViewSet
 from competitions.views import CompetitionViewSet
+from servers.views import ServerViewSet
 
 router = DefaultRouter()
 router.register(r'tasks', TaskViewSet, basename='task')
 router.register(r'competitions', CompetitionViewSet, basename='competition')
+router.register(r'servers', ServerViewSet, basename='server')
 
 urlpatterns = [
     path('admin/', admin.site.urls),

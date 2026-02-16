@@ -12,11 +12,15 @@ class CompetitionViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return Competition.objects.filter(
+        queryset = Competition.objects.filter(
             challenger=self.request.user
         ) | Competition.objects.filter(
             opponent=self.request.user
         )
+        server_id = self.request.query_params.get('server', None)
+        if server_id is not None:
+            queryset = queryset.filter(server_id=server_id)
+        return queryset
     
     def perform_create(self, serializer):
         serializer.save(challenger=self.request.user)

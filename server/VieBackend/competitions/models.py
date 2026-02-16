@@ -10,6 +10,7 @@ class Competition(models.Model):
     
     challenger = models.ForeignKey(User, on_delete=models.CASCADE, related_name='competitions_initiated')
     opponent = models.ForeignKey(User, on_delete=models.CASCADE, related_name='competitions_received')
+    server = models.ForeignKey('servers.Server', on_delete=models.CASCADE, related_name='competitions', null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
     challenger_score = models.IntegerField(default=0)
     opponent_score = models.IntegerField(default=0)
