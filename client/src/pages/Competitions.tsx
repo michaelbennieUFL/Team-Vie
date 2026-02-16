@@ -14,36 +14,18 @@ export default function Competitions() {
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadUserAndCompetitions();
-        return () => {
-            if (ws) ws.close();
-        };
-    }, []);
-
-    useEffect(() => {
-        loadCompetitions();
-    }, [selectedServerId]);
-
-    const loadUserAndCompetitions = async () => {
+    const loadCompetitions = async () => {
         try {
-            const user = await apiService.getCurrentUser();
-            setCurrentUser(user);
-            const serversData = await apiService.getServers();
-            setServers(serversData);
-            const saved = localStorage.getItem('selectedServerId');
-            if (saved) setSelectedServerId(Number(saved));
-            await loadCompetitions();
+            const data = await apiService.getCompetitions(selectedServerId);
+            setCompetitions(data);
+            if (selectedCompetition) {
+                const updated = data.find(c => c.id === selectedCompetition.id);
+                if (updated) setSelectedCompetition(updated);
+            }
         } catch (error) {
-            console.error('Failed to load user:', error);
+            console.error('Failed to load competitions:', error);
         }
     };
-
-    useEffect(() => {
-        if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
-            connectWebSocket(selectedCompetition.id);
-        }
-    }, [selectedCompetition]);
 
     const connectWebSocket = (competitionId: number) => {
         if (ws) ws.close();
@@ -68,18 +50,36 @@ export default function Competitions() {
         setWs(websocket);
     };
 
-    const loadCompetitions = async () => {
+    const loadUserAndCompetitions = async () => {
         try {
-            const data = await apiService.getCompetitions(selectedServerId);
-            setCompetitions(data);
-            if (selectedCompetition) {
-                const updated = data.find(c => c.id === selectedCompetition.id);
-                if (updated) setSelectedCompetition(updated);
-            }
+            const user = await apiService.getCurrentUser();
+            setCurrentUser(user);
+            const serversData = await apiService.getServers();
+            setServers(serversData);
+            const saved = localStorage.getItem('selectedServerId');
+            if (saved) setSelectedServerId(Number(saved));
+            await loadCompetitions();
         } catch (error) {
-            console.error('Failed to load competitions:', error);
+            console.error('Failed to load user:', error);
         }
     };
+
+    useEffect(() => {
+        loadUserAndCompetitions();
+        return () => {
+            if (ws) ws.close();
+        };
+    }, []);
+
+    useEffect(() => {
+        loadCompetitions();
+    }, [selectedServerId]);
+
+    useEffect(() => {
+        if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
+            connectWebSocket(selectedCompetition.id);
+        }
+    }, [selectedCompetition]);
 
     const handleCreateCompetition = async (e: React.FormEvent) => {
         e.preventDefault();

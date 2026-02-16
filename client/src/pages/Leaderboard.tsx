@@ -10,14 +10,6 @@ export default function Leaderboard() {
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadServers();
-    }, []);
-
-    useEffect(() => {
-        loadLeaderboard();
-    }, [region, selectedServerId]);
-
     const loadServers = async () => {
         try {
             const data = await apiService.getServers();
@@ -37,6 +29,14 @@ export default function Leaderboard() {
             console.error('Failed to load leaderboard:', error);
         }
     };
+
+    useEffect(() => {
+        loadServers();
+    }, []);
+
+    useEffect(() => {
+        loadLeaderboard();
+    }, [region, selectedServerId]);
 
     return (
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>

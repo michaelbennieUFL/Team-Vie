@@ -23,16 +23,6 @@ export default function Dashboard() {
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadInitialData();
-    }, []);
-
-    useEffect(() => {
-        if (user) {
-            loadTasks();
-        }
-    }, [selectedServer]);
-
     const loadInitialData = async () => {
         try {
             const userData = await apiService.getCurrentUser();
@@ -60,6 +50,16 @@ export default function Dashboard() {
             console.error('Failed to load tasks:', error);
         }
     };
+
+    useEffect(() => {
+        loadInitialData();
+    }, []);
+
+    useEffect(() => {
+        if (user) {
+            loadTasks();
+        }
+    }, [selectedServer]);
 
     const handleSelectServer = (server: VieServer) => {
         setSelectedServer(server);

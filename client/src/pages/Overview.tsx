@@ -9,10 +9,6 @@ export default function Overview() {
     const [servers, setServers] = useState<VieServer[]>([]);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
     const loadData = async () => {
         try {
             const userData = await apiService.getCurrentUser();
@@ -26,6 +22,10 @@ export default function Overview() {
             navigate('/login');
         }
     };
+
+    useEffect(() => {
+        loadData();
+    }, []);
 
     const getServerName = (serverId: number | null) => {
         if (!serverId) return 'Unassigned';
