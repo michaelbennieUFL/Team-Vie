@@ -9,6 +9,12 @@ class Task(models.Model):
         ('MEDIUM', 'Medium'),
         ('HIGH', 'High'),
     ]
+
+    RECURRENCE_CHOICES = [
+        ('NONE', 'None'),
+        ('DAILY', 'Daily'),
+        ('WEEKLY', 'Weekly'),
+    ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     server = models.ForeignKey('servers.Server', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
@@ -21,6 +27,7 @@ class Task(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     due_date = models.DateField(null=True, blank=True)
+    recurrence = models.CharField(max_length=10, choices=RECURRENCE_CHOICES, default='NONE')
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
@@ -54,6 +61,28 @@ class Task(models.Model):
             
             profile.last_task_completed_date = today
             profile.save()
+
+            # Handle recurring tasks - create next occurrence
+            if self.recurrence != 'NONE' and self.due_date:
+                from datetime import timedelta
+                if self.recurrence == 'DAILY':
+                    next_due = self.due_date + timedelta(days=1)
+                elif self.recurrence == 'WEEKLY':
+                    next_due = self.due_date + timedelta(weeks=1)
+                else:
+                    next_due = None
+
+                if next_due:
+                    Task.objects.create(
+                        user=self.user,
+                        server=self.server,
+                        title=self.title,
+                        description=self.description,
+                        priority=self.priority,
+                        points_value=self.points_value,
+                        due_date=next_due,
+                        recurrence=self.recurrence,
+                    )
     
     class Meta:
         ordering = ['-created_at']

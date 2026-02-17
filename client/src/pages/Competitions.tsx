@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import type { Competition, User, VieServer } from '../services/api';
+import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
 
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [showCreate, setShowCreate] = useState(false);
-    const [opponentId, setOpponentId] = useState('');
+    const [opponentQuery, setOpponentQuery] = useState('');
+    const [opponentResults, setOpponentResults] = useState<UserSearchResult[]>([]);
+    const [selectedOpponent, setSelectedOpponent] = useState<UserSearchResult | null>(null);
     const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
     const [ws, setWs] = useState<WebSocket | null>(null);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -81,12 +83,33 @@ export default function Competitions() {
         }
     }, [selectedCompetition]);
 
+    const handleSearchOpponent = async (query: string) => {
+        setOpponentQuery(query);
+        setSelectedOpponent(null);
+        if (query.trim().length < 1) {
+            setOpponentResults([]);
+            return;
+        }
+        try {
+            const results = await apiService.searchUsers(query);
+            setOpponentResults(results);
+        } catch (error) {
+            console.error('Failed to search users:', error);
+        }
+    };
+
     const handleCreateCompetition = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!selectedOpponent) {
+            alert('Please select an opponent from the search results.');
+            return;
+        }
         try {
-            await apiService.createCompetition(parseInt(opponentId), selectedServerId);
+            await apiService.createCompetition(selectedOpponent.id, selectedServerId);
             setShowCreate(false);
-            setOpponentId('');
+            setOpponentQuery('');
+            setOpponentResults([]);
+            setSelectedOpponent(null);
             await loadCompetitions();
             alert('Competition created! Waiting for opponent to accept.');
         } catch (error) {
@@ -148,15 +171,57 @@ export default function Competitions() {
                     marginBottom: '20px'
                 }}>
                     <h3>Create New Competition</h3>
-                    <input
-                        type="number"
-                        placeholder="Opponent User ID"
-                        value={opponentId}
-                        onChange={(e) => setOpponentId(e.target.value)}
-                        required
-                        style={{ padding: '8px', marginRight: '10px' }}
-                    />
-                    <button type="submit">Create</button>
+                    <div style={{ position: 'relative', marginBottom: '10px' }}>
+                        <input
+                            type="text"
+                            placeholder="Search opponent by username..."
+                            value={opponentQuery}
+                            onChange={(e) => handleSearchOpponent(e.target.value)}
+                            style={{ padding: '8px', width: '300px' }}
+                            autoFocus
+                        />
+                        {selectedOpponent && (
+                            <span style={{ marginLeft: '10px', color: '#4CAF50', fontWeight: 'bold' }}>
+                                ✓ {selectedOpponent.username}
+                            </span>
+                        )}
+                        {opponentResults.length > 0 && !selectedOpponent && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                background: 'white',
+                                border: '1px solid #ddd',
+                                borderRadius: '6px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                zIndex: 1000,
+                                width: '300px',
+                                maxHeight: '200px',
+                                overflowY: 'auto'
+                            }}>
+                                {opponentResults.map(user => (
+                                    <div
+                                        key={user.id}
+                                        onClick={() => {
+                                            setSelectedOpponent(user);
+                                            setOpponentQuery(user.username);
+                                            setOpponentResults([]);
+                                        }}
+                                        style={{
+                                            padding: '8px 12px',
+                                            cursor: 'pointer',
+                                            borderBottom: '1px solid #f0f0f0'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                    >
+                                        {user.username}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <button type="submit" disabled={!selectedOpponent}>Create</button>
                 </form>
             )}
 

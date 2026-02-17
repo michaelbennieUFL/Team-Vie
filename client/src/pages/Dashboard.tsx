@@ -10,6 +10,9 @@ export default function Dashboard() {
     const [selectedServer, setSelectedServer] = useState<VieServer | null>(null);
     const [showServerDropdown, setShowServerDropdown] = useState(false);
     const [showCreateServer, setShowCreateServer] = useState(false);
+    const [showJoinServer, setShowJoinServer] = useState(false);
+    const [joinServerQuery, setJoinServerQuery] = useState('');
+    const [joinServerResults, setJoinServerResults] = useState<VieServer[]>([]);
     const [newServerName, setNewServerName] = useState('');
     const [newServerDesc, setNewServerDesc] = useState('');
     const [showAddTask, setShowAddTask] = useState(false);
@@ -18,7 +21,8 @@ export default function Dashboard() {
         description: '',
         priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
         points_value: 10,
-        due_date: ''
+        due_date: '',
+        recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
     });
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const navigate = useNavigate();
@@ -82,6 +86,39 @@ export default function Dashboard() {
         }
     };
 
+    const handleSearchServers = async (query: string) => {
+        setJoinServerQuery(query);
+        if (query.trim().length < 1) {
+            setJoinServerResults([]);
+            return;
+        }
+        try {
+            const results = await apiService.searchServers(query);
+            setJoinServerResults(results);
+        } catch (error) {
+            console.error('Failed to search servers:', error);
+        }
+    };
+
+    const handleJoinServer = async (serverId: number) => {
+        try {
+            await apiService.joinServer(serverId);
+            const serversData = await apiService.getServers();
+            setServers(serversData);
+            const joined = serversData.find(s => s.id === serverId);
+            if (joined) {
+                setSelectedServer(joined);
+                localStorage.setItem('selectedServerId', String(joined.id));
+            }
+            setShowJoinServer(false);
+            setJoinServerQuery('');
+            setJoinServerResults([]);
+            alert('Successfully joined server!');
+        } catch (error) {
+            alert('Failed to join server: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
     const handleLogout = async () => {
         try {
             await apiService.logout();
@@ -108,7 +145,8 @@ export default function Dashboard() {
                 description: '',
                 priority: 'MEDIUM',
                 points_value: 10,
-                due_date: ''
+                due_date: '',
+                recurrence: 'NONE'
             });
         } catch (error) {
             alert('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -232,6 +270,20 @@ export default function Dashboard() {
                                 >
                                     + Create Server
                                 </div>
+                                <div
+                                    onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}
+                                    style={{
+                                        padding: '10px 12px',
+                                        cursor: 'pointer',
+                                        color: '#2196F3',
+                                        fontWeight: 'bold',
+                                        borderTop: '1px solid #eee'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                >
+                                    🔍 Join Server
+                                </div>
                             </div>
                         )}
                     </div>
@@ -239,6 +291,9 @@ export default function Dashboard() {
                 <div>
                     <button onClick={() => navigate('/overview')} style={{ marginRight: '10px' }}>
                         Overview
+                    </button>
+                    <button onClick={() => navigate('/schedule')} style={{ marginRight: '10px' }}>
+                        Schedule
                     </button>
                     <button onClick={() => navigate('/leaderboard')} style={{ marginRight: '10px' }}>
                         Leaderboard
@@ -279,6 +334,63 @@ export default function Dashboard() {
                                 <button type="button" onClick={() => setShowCreateServer(false)}>Cancel</button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Join Server Modal */}
+            {showJoinServer && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', zIndex: 2000
+                }}>
+                    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '400px' }}>
+                        <h3>🔍 Join a Server</h3>
+                        <input
+                            type="text"
+                            placeholder="Search servers by name..."
+                            value={joinServerQuery}
+                            onChange={(e) => handleSearchServers(e.target.value)}
+                            style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
+                            autoFocus
+                        />
+                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                            {joinServerResults.length > 0 ? (
+                                joinServerResults.map(server => (
+                                    <div key={server.id} style={{
+                                        padding: '10px 12px',
+                                        border: '1px solid #eee',
+                                        borderRadius: '6px',
+                                        marginBottom: '6px',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold' }}>{server.name}</div>
+                                            <div style={{ fontSize: '12px', color: '#888' }}>
+                                                {server.member_count} member{server.member_count !== 1 ? 's' : ''}
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleJoinServer(server.id)}
+                                            style={{ background: '#2196F3', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                                        >
+                                            Join
+                                        </button>
+                                    </div>
+                                ))
+                            ) : joinServerQuery.trim() ? (
+                                <p style={{ color: '#888', textAlign: 'center' }}>No servers found</p>
+                            ) : (
+                                <p style={{ color: '#888', textAlign: 'center' }}>Type to search for servers</p>
+                            )}
+                        </div>
+                        <button type="button" onClick={() => { setShowJoinServer(false); setJoinServerQuery(''); setJoinServerResults([]); }}
+                            style={{ marginTop: '10px' }}>
+                            Cancel
+                        </button>
                     </div>
                 </div>
             )}
@@ -363,6 +475,15 @@ export default function Dashboard() {
                                 onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
                                 style={{ padding: '8px' }}
                             />
+                            <select
+                                value={newTask.recurrence}
+                                onChange={(e) => setNewTask({ ...newTask, recurrence: e.target.value as 'NONE' | 'DAILY' | 'WEEKLY' })}
+                                style={{ padding: '8px' }}
+                            >
+                                <option value="NONE">One-time</option>
+                                <option value="DAILY">Daily</option>
+                                <option value="WEEKLY">Weekly</option>
+                            </select>
                         </div>
                         <button type="submit">Create Task</button>
                     </form>
@@ -444,6 +565,9 @@ export default function Dashboard() {
                                         <span>Priority: {task.priority} | </span>
                                         <span>Points: {task.points_value} | </span>
                                         {task.due_date && <span>Due: {task.due_date} | </span>}
+                                        {task.recurrence && task.recurrence !== 'NONE' && (
+                                            <span>🔄 {task.recurrence} | </span>
+                                        )}
                                         <span>Created: {new Date(task.created_at).toLocaleDateString()}</span>
                                     </div>
                                 </div>
