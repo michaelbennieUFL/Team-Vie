@@ -384,7 +384,7 @@ function LandingPage({
                 <span>Rank</span>
                 <span>Competitor</span>
                 <span>Points</span>
-                <span>Streak</span>
+                <span>Streaks</span>
               </div>
               {[
                 {
@@ -412,6 +412,13 @@ function LandingPage({
                   rank: '04',
                   name: 'Ethan Walker',
                   title: 'University of Texas · Daily Reading',
+                  points: '4,120',
+                  streak: '14d',
+                },
+                {
+                  rank: '09',
+                  name: 'Ethan Walker',
+                  title: 'University of Arlington · Daily Reading',
                   points: '4,120',
                   streak: '14d',
                 },
