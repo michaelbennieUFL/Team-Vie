@@ -195,7 +195,7 @@ export default function Competitions() {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, [selectedCompetition?.id, selectedCompetition?.status]);
+    }, [selectedCompetition?.id, selectedCompetition?.status, startGame]);
 
     return (
         <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
