@@ -117,7 +117,7 @@ if [ $TESTS_FAILED -eq 0 ]; then
     echo ""
     echo "To start the application:"
     echo "1. Backend: cd server/VieBackend && python manage.py runserver"
-    echo "2. Frontend: cd client && npm run dev"
+    echo "2. Frontend: cd client && bun run dev"
     exit 0
 else
     echo -e "${RED}Some tests failed. Please check the backend configuration.${NC}"

@@ -25,17 +25,12 @@ if ! command -v docker &> /dev/null; then
 fi
 echo -e "${GREEN}✓${NC} Docker found"
 
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}Error: Node.js is not installed. Please install Node.js 18+.${NC}"
+if ! command -v bun &> /dev/null; then
+    echo -e "${RED}Error: Bun is not installed. Please install Bun first.${NC}"
+    echo "  Install Bun: https://bun.sh"
     exit 1
 fi
-echo -e "${GREEN}✓${NC} Node.js found ($(node --version))"
-
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}Error: npm is not installed.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓${NC} npm found ($(npm --version))"
+echo -e "${GREEN}✓${NC} Bun found ($(bun --version))"
 
 # Check for mamba or conda
 if command -v mamba &> /dev/null; then
@@ -87,6 +82,12 @@ fi
 echo -e "${GREEN}✓${NC} Python environment 'vie' is ready"
 echo ""
 
+# ── 3b. Install Python dependencies with uv ─────────────────
+echo "Installing Python dependencies with uv..."
+conda run -n vie uv pip install -r "$PROJECT_DIR/server/requirements.txt"
+echo -e "${GREEN}✓${NC} Python dependencies installed"
+echo ""
+
 # ── 4. Run migrations and seed data ─────────────────────────
 echo "Running Django migrations and seeding data..."
 
@@ -104,7 +105,7 @@ echo ""
 # ── 5. Install frontend dependencies ────────────────────────
 echo "Installing frontend dependencies..."
 cd "$PROJECT_DIR/client"
-npm install
+bun install
 echo -e "${GREEN}✓${NC} Frontend dependencies installed"
 echo ""
 

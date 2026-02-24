@@ -64,7 +64,7 @@ sleep 2
 # Start frontend
 echo -e "${GREEN}Starting frontend server...${NC}"
 cd "$PROJECT_DIR/client"
-npm run dev &
+bun run dev &
 FRONTEND_PID=$!
 sleep 2
 

@@ -73,12 +73,13 @@ Additional seeded users: `alice`, `bob`, `charlie`, `diana` (passwords follow th
 
 ### Environment
 - **Mamba / Conda** - Python environment management
+- **uv** - Fast Python package installer
 
 ## Getting Started
 
 ### Prerequisites
 - [Mamba](https://mamba.readthedocs.io/) or [Conda](https://docs.conda.io/) (for Python environment)
-- Node.js 18+
+- [Bun](https://bun.sh) (JavaScript runtime and package manager)
 - Docker and Docker Compose
 - Redis (optional, for WebSocket support)
 
@@ -93,9 +94,10 @@ cd Team-Vie
 The install script will:
 1. Start the PostgreSQL database via Docker
 2. Create a `vie` Python environment using mamba/conda
-3. Run Django migrations
-4. Seed the database with default users, servers, tasks, and competitions
-5. Install frontend npm dependencies
+3. Install Python dependencies with uv
+4. Run Django migrations
+5. Seed the database with default users, servers, tasks, and competitions
+6. Install frontend Bun dependencies
 
 ### Quick Start
 
@@ -142,6 +144,11 @@ conda env create -f environment.yml
 conda activate vie
 ```
 
+Install Python dependencies with uv:
+```bash
+uv pip install -r server/requirements.txt
+```
+
 #### 4. Set up the backend
 ```bash
 cd server/VieBackend
@@ -164,10 +171,10 @@ Open a new terminal:
 cd client
 
 # Install dependencies
-npm install
+bun install
 
 # Start the development server
-npm run dev
+bun run dev
 ```
 
 The frontend will be available at `http://localhost:5173`
@@ -300,14 +307,14 @@ python manage.py test
 
 # Frontend tests
 cd client
-npm test
+bun test
 ```
 
 ### Building for Production
 ```bash
 # Frontend
 cd client
-npm run build
+bun run build
 
 # The build files will be in client/dist/
 ```
@@ -330,4 +337,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - WebSocket support powered by Django Channels
 - Database: PostgreSQL
 - Containerization: Docker
-- Python environment: Mamba/Conda
+- Python environment: Mamba/Conda + uv
