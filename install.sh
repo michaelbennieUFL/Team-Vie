@@ -25,17 +25,27 @@ if ! command -v docker &> /dev/null; then
 fi
 echo -e "${GREEN}✓${NC} Docker found"
 
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}Error: Node.js is not installed. Please install Node.js 18+.${NC}"
+if command -v bun &> /dev/null; then
+    echo -e "${GREEN}✓${NC} Bun found ($(bun --version)) — will use Bun for frontend"
+    FRONTEND_CMD="bun"
+elif command -v node &> /dev/null; then
+    NODE_MAJOR=$(node -e "process.stdout.write(String(process.versions.node.split('.')[0]))")
+    NODE_MINOR=$(node -e "process.stdout.write(String(process.versions.node.split('.')[1]))")
+    if [ "$NODE_MAJOR" -gt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -ge 19 ]; }; then
+        echo -e "${GREEN}✓${NC} Node.js found ($(node --version)) — will use npm for frontend"
+        FRONTEND_CMD="npm"
+    else
+        echo -e "${RED}Error: Node.js $(node --version) is too old. Vite requires Node >= 20.19.${NC}"
+        echo "  Install Bun: https://bun.sh"
+        echo "  Or upgrade Node via nvm: nvm install 22 && nvm use 22"
+        exit 1
+    fi
+else
+    echo -e "${RED}Error: Neither Bun nor Node.js is installed.${NC}"
+    echo "  Install Bun: https://bun.sh"
+    echo "  Or install Node.js >= 20.19: https://nodejs.org"
     exit 1
 fi
-echo -e "${GREEN}✓${NC} Node.js found ($(node --version))"
-
-if ! command -v npm &> /dev/null; then
-    echo -e "${RED}Error: npm is not installed.${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓${NC} npm found ($(npm --version))"
 
 # Check for mamba or conda
 if command -v mamba &> /dev/null; then
@@ -104,7 +114,11 @@ echo ""
 # ── 5. Install frontend dependencies ────────────────────────
 echo "Installing frontend dependencies..."
 cd "$PROJECT_DIR/client"
-npm install
+if [ "$FRONTEND_CMD" = "bun" ]; then
+    bun install
+else
+    npm install
+fi
 echo -e "${GREEN}✓${NC} Frontend dependencies installed"
 echo ""
 

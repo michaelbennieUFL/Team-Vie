@@ -61,11 +61,28 @@ python manage.py runserver &
 BACKEND_PID=$!
 sleep 2
 
-# Start frontend
+# Start frontend (prefer Bun; fall back to Node >= 20.19)
 echo -e "${GREEN}Starting frontend server...${NC}"
 cd "$PROJECT_DIR/client"
-npm run dev &
-FRONTEND_PID=$!
+if command -v bun &> /dev/null; then
+    bun run dev &
+    FRONTEND_PID=$!
+elif command -v node &> /dev/null; then
+    NODE_MAJOR=$(node -e "process.stdout.write(String(process.versions.node.split('.')[0]))")
+    NODE_MINOR=$(node -e "process.stdout.write(String(process.versions.node.split('.')[1]))")
+    # Require Node >= 20.19
+    if [ "$NODE_MAJOR" -gt 20 ] || { [ "$NODE_MAJOR" -eq 20 ] && [ "$NODE_MINOR" -ge 19 ]; }; then
+        npm run dev &
+        FRONTEND_PID=$!
+    else
+        echo -e "${RED}Error: Node.js $(node --version) is too old. Vite requires Node >= 20.19.${NC}"
+        echo "  Install Bun (https://bun.sh) or run: nvm use (requires .nvmrc / nvm install 22)"
+        cleanup
+    fi
+else
+    echo -e "${RED}Error: Neither Bun nor Node.js is installed. Please install Bun (https://bun.sh) or Node.js >= 20.19.${NC}"
+    cleanup
+fi
 sleep 2
 
 echo ""
