@@ -119,6 +119,7 @@ if [ "$FRONTEND_CMD" = "bun" ]; then
 else
     npm install
 fi
+nvm install 22 && nvm use 22 
 echo -e "${GREEN}✓${NC} Frontend dependencies installed"
 echo ""
 
