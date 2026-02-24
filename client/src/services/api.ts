@@ -55,6 +55,7 @@ export interface Competition {
   completed_at: string | null;
   tasks: CompetitionTask[];
   server: number | null;
+  duration_seconds: number;
 }
 
 export interface CompetitionTask {
@@ -78,6 +79,8 @@ export interface LeaderboardEntry {
 export interface UserSearchResult {
   id: number;
   username: string;
+  first_name: string;
+  last_name: string;
 }
 
 class ApiService {
@@ -282,6 +285,15 @@ class ApiService {
       headers: this.getHeaders(),
       credentials: 'include',
       body: JSON.stringify({ task_id: taskId }),
+    });
+    return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+
+  async clickCompetition(competitionId: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${competitionId}/click/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
     });
     return this.handleResponse<{ message: string; competition: Competition }>(response);
   }

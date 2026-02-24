@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.utils import timezone
+from datetime import timedelta
 from .models import Competition, CompetitionTask
 from .serializers import CompetitionSerializer, CompetitionTaskSerializer
 
@@ -88,5 +89,45 @@ class CompetitionViewSet(viewsets.ModelViewSet):
         
         return Response({
             'message': 'Task completed',
+            'competition': CompetitionSerializer(competition).data
+        })
+
+    @action(detail=True, methods=['post'])
+    def click(self, request, pk=None):
+        competition = self.get_object()
+
+        if competition.status != 'ACTIVE':
+            return Response({
+                'error': 'Competition is not active'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        if not competition.started_at:
+            return Response({
+                'error': 'Competition has not started'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        elapsed = timezone.now() - competition.started_at
+        if elapsed > timedelta(seconds=competition.duration_seconds):
+            competition.status = 'COMPLETED'
+            competition.completed_at = competition.started_at + timedelta(seconds=competition.duration_seconds)
+            competition.save()
+            return Response({
+                'message': 'Competition time expired',
+                'competition': CompetitionSerializer(competition).data
+            })
+
+        if request.user == competition.challenger:
+            competition.challenger_score += 1
+        elif request.user == competition.opponent:
+            competition.opponent_score += 1
+        else:
+            return Response({
+                'error': 'Not a participant in this competition'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        competition.save()
+
+        return Response({
+            'message': 'Click recorded',
             'competition': CompetitionSerializer(competition).data
         })

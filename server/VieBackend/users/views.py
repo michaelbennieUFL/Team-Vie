@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.db.models import F, Window
+from django.db.models import F, Q, Window
 from django.db.models.functions import Rank
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import UserProfile
@@ -63,9 +63,11 @@ def search_users_view(request):
     if not query:
         return Response([])
     users = User.objects.filter(
-        username__icontains=query
+        Q(username__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query)
     ).exclude(id=request.user.id)[:20]
-    results = [{'id': u.id, 'username': u.username} for u in users]
+    results = [{'id': u.id, 'username': u.username, 'first_name': u.first_name, 'last_name': u.last_name} for u in users]
     return Response(results)
 
 @api_view(['GET'])

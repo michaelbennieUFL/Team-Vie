@@ -18,6 +18,6 @@ class CompetitionSerializer(serializers.ModelSerializer):
         model = Competition
         fields = ['id', 'challenger', 'challenger_username', 'opponent', 'opponent_username', 
                   'status', 'challenger_score', 'opponent_score', 'created_at', 
-                  'started_at', 'completed_at', 'tasks', 'server']
+                  'started_at', 'completed_at', 'tasks', 'server', 'duration_seconds']
         read_only_fields = ['id', 'challenger', 'status', 'challenger_score', 'opponent_score', 
                            'created_at', 'started_at', 'completed_at']
