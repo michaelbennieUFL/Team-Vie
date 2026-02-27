@@ -78,9 +78,11 @@ Additional seeded users: `alice`, `bob`, `charlie`, `diana` (passwords follow th
 
 ### Prerequisites
 - [Mamba](https://mamba.readthedocs.io/) or [Conda](https://docs.conda.io/) (for Python environment)
-- Node.js 18+
+- [Bun](https://bun.sh) (recommended) **or** Node.js >= 20.19 (e.g. Node 22 LTS)
 - Docker and Docker Compose
 - Redis (optional, for WebSocket support)
+
+> **Node.js version note:** Vite requires Node.js >= 20.19 or >= 22.12. The repo includes a `.nvmrc` set to Node 22. If you use nvm, run `nvm use` (or `nvm install 22`) before starting. Installing [Bun](https://bun.sh) is the easiest way to avoid Node version issues.
 
 ### Quick Install
 
@@ -163,11 +165,13 @@ Open a new terminal:
 ```bash
 cd client
 
-# Install dependencies
-npm install
+# Install dependencies (Bun recommended; or npm with Node >= 20.19)
+bun install       # preferred
+# npm install     # fallback if Node >= 20.19
 
 # Start the development server
-npm run dev
+bun run dev       # preferred
+# npm run dev     # fallback if Node >= 20.19
 ```
 
 The frontend will be available at `http://localhost:5173`
