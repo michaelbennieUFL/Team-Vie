@@ -85,10 +85,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         # 'NAME': BASE_DIR / 'db.sqlite3',
-        'NAME': 'vie-db',
+        'NAME': 'vie',
         'USER': 'vie',
         'PASSWORD': 'CompeteToAdvance',
-        'HOST': 'localhost',
+        'HOST': 'vie-db',
         'PORT': '5432'
     }
 }
