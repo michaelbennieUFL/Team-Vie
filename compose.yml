@@ -1,0 +1,71 @@
+name: team-vie
+
+services:
+  frontend:
+    image: team-vie/vie-frontend
+    container_name: vie-frontend
+    volumes:
+      - vie-front-data:/app
+    build: .\client
+    ports:
+      - 5173:5173
+    networks: 
+      - vie-frontend
+    develop:
+      watch:
+        - action: sync
+          path: .\client\src
+          target: /app/src
+          initial_sync: true
+        - action: rebuild
+          path: .\client\package.json
+    depends_on:
+      - backend
+  
+  backend:
+    image: team-vie/vie-backend
+    container_name: vie-backend
+    volumes:
+      - vie-back-data:/usr/local/app
+    build: .\server
+    # I was under the impression that the frontend container could communicate with the backend container
+    # purely by connecting them via a Docker network. that doesn't work apparently. need to look into that.
+    ports:
+      - 8000:8000
+    networks:
+      - vie-frontend
+      - vie-backend
+    develop:
+      watch:
+        - action: rebuild
+          path: .\server
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: postgres:18
+    container_name: vie-db
+    volumes:
+      - .\database\data:/var/lib/postgresql
+    ports:
+      - 5432:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "vie-db"]
+      interval: 30s
+      timeout: 60s
+      retries: 3
+      start_period: 90s
+    environment:
+      POSTGRES_PASSWORD: CompeteToAchieve
+    networks:
+      - vie-backend
+    restart: unless-stopped
+
+networks:
+  vie-frontend:
+  vie-backend:
+
+volumes:
+  vie-front-data:
+  vie-back-data:
