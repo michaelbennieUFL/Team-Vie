@@ -1,3 +1,4 @@
+import { useMemo, useState, type FormEvent } from 'react'
 import './App.css'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
@@ -8,7 +9,6 @@ import Competitions from './pages/Competitions';
 import Overview from './pages/Overview';
 import Schedule from './pages/Schedule';
 
-function App() {
   return (
     <Router>
       <Routes>
@@ -23,6 +23,25 @@ function App() {
       </Routes>
     </Router>
   );
+}
+
+function App() {
+  const [page, setPage] = useState<'landing' | 'login' | 'dashboard'>('landing')
+
+  if (page === 'landing') {
+    return (
+      <LandingPage
+        onOpenDashboard={() => setPage('dashboard')}
+        onOpenLogin={() => setPage('login')}
+      />
+    )
+  }
+
+  if (page === 'login') {
+    return <LoginPage onBack={() => setPage('landing')} onLogin={() => setPage('dashboard')} />
+  }
+
+  return <DashboardPage onBack={() => setPage('landing')} />
 }
 
 export default App
