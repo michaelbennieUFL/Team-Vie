@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -84,12 +85,11 @@ WSGI_APPLICATION = 'VieBackend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        # 'NAME': BASE_DIR / 'db.sqlite3',
-        'NAME': 'vie',
-        'USER': 'vie',
-        'PASSWORD': 'CompeteToAdvance',
-        'HOST': 'vie-db',
-        'PORT': '5432'
+        'NAME': os.getenv('DB_NAME', 'vie-db'),
+        'USER': os.getenv('DB_USER', 'vie'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'CompeteToAchieve'),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '5433'),
     }
 }
 

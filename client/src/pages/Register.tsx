@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
+import '../LoginPage.css';
 
 export default function Register() {
     const [formData, setFormData] = useState({
@@ -35,63 +36,105 @@ export default function Register() {
     };
 
     return (
-        <div className='login-container'>
-            <h1>Register for VIE</h1>
-            <h3>Join the competitive productivity community!</h3>
-            
-            {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-            
-            <form className='login-form' onSubmit={handleSubmit}>
-                <input 
-                    type="text" 
-                    name="username"
-                    placeholder="Username" 
-                    value={formData.username} 
-                    onChange={handleChange} 
-                    required 
-                />
-                <input 
-                    type="email" 
-                    name="email"
-                    placeholder="Email" 
-                    value={formData.email} 
-                    onChange={handleChange} 
-                    required 
-                />
-                <input 
-                    type="text" 
-                    name="first_name"
-                    placeholder="First Name" 
-                    value={formData.first_name} 
-                    onChange={handleChange} 
-                />
-                <input 
-                    type="text" 
-                    name="last_name"
-                    placeholder="Last Name" 
-                    value={formData.last_name} 
-                    onChange={handleChange} 
-                />
-                <input 
-                    type="password" 
-                    name="password"
-                    placeholder="Password" 
-                    value={formData.password} 
-                    onChange={handleChange} 
-                    required 
-                />
-                <input 
-                    type="password" 
-                    name="password_confirm"
-                    placeholder="Confirm Password" 
-                    value={formData.password_confirm} 
-                    onChange={handleChange} 
-                    required 
-                />
-                <button type="submit">Register</button>
-            </form>
-            
-            <p>Already have an account? <a href="/login">Login here</a></p>
+        <div className="login-page">
+            <Link className="ghost-btn login-back" to="/">
+                <i className="fa-solid fa-arrow-left" />
+                Back to main page
+            </Link>
+
+            <section className="login-shell">
+                <div className="login-brand">
+                    <span className="brand-mark">V</span>
+                    <div>
+                        <p className="brand-name">Create your Vie account</p>
+                        <p className="brand-tag">Compete, track streaks, and stay consistent.</p>
+                    </div>
+                </div>
+
+                <h1>Register</h1>
+                <p className="login-subtitle">Create your profile and start earning points.</p>
+
+                {error && (
+                    <div style={{ color: '#c5203f', fontWeight: 600 }}>
+                        {error}
+                    </div>
+                )}
+
+                <form className="login-form" onSubmit={handleSubmit}>
+                    <label>
+                        Username
+                        <input
+                            type="text"
+                            name="username"
+                            placeholder="choose a username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            required
+                        />
+                    </label>
+                    <label>
+                        Email
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="you@example.com"
+                            value={formData.email}
+                            onChange={handleChange}
+                            required
+                        />
+                    </label>
+                    <label>
+                        First Name
+                        <input
+                            type="text"
+                            name="first_name"
+                            placeholder="Jane"
+                            value={formData.first_name}
+                            onChange={handleChange}
+                        />
+                    </label>
+                    <label>
+                        Last Name
+                        <input
+                            type="text"
+                            name="last_name"
+                            placeholder="Doe"
+                            value={formData.last_name}
+                            onChange={handleChange}
+                        />
+                    </label>
+                    <label>
+                        Password
+                        <input
+                            type="password"
+                            name="password"
+                            placeholder="Create a password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            required
+                        />
+                    </label>
+                    <label>
+                        Confirm Password
+                        <input
+                            type="password"
+                            name="password_confirm"
+                            placeholder="Repeat password"
+                            value={formData.password_confirm}
+                            onChange={handleChange}
+                            required
+                        />
+                    </label>
+                    <button type="submit" className="primary-btn full-width">
+                        Create account
+                        <i className="fa-solid fa-user-plus" />
+                    </button>
+                </form>
+
+                <p className="login-meta">
+                    Already have an account? <Link to="/login">Sign in</Link>
+                </p>
+            </section>
         </div>
     );
 }

@@ -39,7 +39,7 @@ export default function Leaderboard() {
     }, [region, selectedServerId]);
 
     return (
-        <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>🏆 Leaderboard</h1>
                 <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
