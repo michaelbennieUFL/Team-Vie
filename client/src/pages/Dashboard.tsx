@@ -1,596 +1,586 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
-import type { User, Task, VieServer } from '../services/api';
+import type { Competition, LeaderboardEntry, User, Task, VieServer } from '../services/api';
 
 export default function Dashboard() {
-    const [user, setUser] = useState<User | null>(null);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [servers, setServers] = useState<VieServer[]>([]);
-    const [selectedServer, setSelectedServer] = useState<VieServer | null>(null);
-    const [showServerDropdown, setShowServerDropdown] = useState(false);
-    const [showCreateServer, setShowCreateServer] = useState(false);
-    const [showJoinServer, setShowJoinServer] = useState(false);
-    const [joinServerQuery, setJoinServerQuery] = useState('');
-    const [joinServerResults, setJoinServerResults] = useState<VieServer[]>([]);
-    const [newServerName, setNewServerName] = useState('');
-    const [newServerDesc, setNewServerDesc] = useState('');
-    const [showAddTask, setShowAddTask] = useState(false);
-    const [newTask, setNewTask] = useState({
+  const [user, setUser] = useState<User | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [servers, setServers] = useState<VieServer[]>([]);
+  const [selectedServer, setSelectedServer] = useState<VieServer | null>(null);
+  const [showServerDropdown, setShowServerDropdown] = useState(false);
+  const [showCreateServer, setShowCreateServer] = useState(false);
+  const [showJoinServer, setShowJoinServer] = useState(false);
+  const [joinServerQuery, setJoinServerQuery] = useState('');
+  const [joinServerResults, setJoinServerResults] = useState<VieServer[]>([]);
+  const [newServerName, setNewServerName] = useState('');
+  const [newServerDesc, setNewServerDesc] = useState('');
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
+    points_value: 10,
+    due_date: '',
+    recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
+  });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardEntry[]>([]);
+  const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const navigate = useNavigate();
+
+  const loadTasks = async (serverId?: number) => {
+    try {
+      const tasksData = await apiService.getTasks(serverId);
+      setTasks(tasksData);
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+    }
+  };
+
+  const loadSidebarData = async (serverId?: number) => {
+    try {
+      const [leaderboardData, competitionData] = await Promise.all([
+        apiService.getLeaderboard(undefined, serverId),
+        apiService.getCompetitions(serverId),
+      ]);
+      setLeaderboardPreview(leaderboardData.slice(0, 5));
+      setCompetitions(competitionData);
+    } catch (error) {
+      console.error('Failed to load sidebar data:', error);
+    }
+  };
+
+  const loadInitialData = async () => {
+    try {
+      const userData = await apiService.getCurrentUser();
+      setUser(userData);
+      const serversData = await apiService.getServers();
+      setServers(serversData);
+      if (serversData.length > 0) {
+        const saved = localStorage.getItem('selectedServerId');
+        const found = saved ? serversData.find((s) => s.id === Number(saved)) : null;
+        const initial = found || serversData[0];
+        setSelectedServer(initial);
+        await loadTasks(initial.id);
+        await loadSidebarData(initial.id);
+      } else {
+        await loadTasks();
+        await loadSidebarData();
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      navigate('/login');
+    }
+  };
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    if (selectedServer) {
+      loadTasks(selectedServer.id);
+      loadSidebarData(selectedServer.id);
+    }
+  }, [selectedServer]);
+
+  const handleSelectServer = (server: VieServer) => {
+    setSelectedServer(server);
+    localStorage.setItem('selectedServerId', String(server.id));
+    setShowServerDropdown(false);
+  };
+
+  const handleCreateServer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const server = await apiService.createServer({ name: newServerName, description: newServerDesc });
+      setServers((prev) => [...prev, server]);
+      setSelectedServer(server);
+      localStorage.setItem('selectedServerId', String(server.id));
+      setShowCreateServer(false);
+      setNewServerName('');
+      setNewServerDesc('');
+    } catch (error) {
+      alert(`Failed to create server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleSearchServers = async (query: string) => {
+    setJoinServerQuery(query);
+    if (query.trim().length < 1) {
+      setJoinServerResults([]);
+      return;
+    }
+    try {
+      const results = await apiService.searchServers(query);
+      setJoinServerResults(results);
+    } catch (error) {
+      console.error('Failed to search servers:', error);
+    }
+  };
+
+  const handleJoinServer = async (serverId: number) => {
+    try {
+      await apiService.joinServer(serverId);
+      const serversData = await apiService.getServers();
+      setServers(serversData);
+      const joined = serversData.find((s) => s.id === serverId);
+      if (joined) {
+        setSelectedServer(joined);
+        localStorage.setItem('selectedServerId', String(joined.id));
+      }
+      setShowJoinServer(false);
+      setJoinServerQuery('');
+      setJoinServerResults([]);
+    } catch (error) {
+      alert(`Failed to join server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiService.logout();
+      localStorage.removeItem('user');
+      localStorage.removeItem('selectedServerId');
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const handleAddTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const task = await apiService.createTask({
+        ...newTask,
+        server: selectedServer?.id || null,
+        points_value: Number(newTask.points_value) || 10,
+      });
+      setTasks((prev) => [task, ...prev]);
+      setShowAddTask(false);
+      setNewTask({
         title: '',
         description: '',
-        priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
+        priority: 'MEDIUM',
         points_value: 10,
         due_date: '',
-        recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
-    });
-    const [editingTask, setEditingTask] = useState<Task | null>(null);
-    const navigate = useNavigate();
+        recurrence: 'NONE',
+      });
+    } catch (error) {
+      alert(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
-    const loadInitialData = async () => {
-        try {
-            const userData = await apiService.getCurrentUser();
-            setUser(userData);
-            const serversData = await apiService.getServers();
-            setServers(serversData);
-            if (serversData.length > 0) {
-                const saved = localStorage.getItem('selectedServerId');
-                const found = saved ? serversData.find(s => s.id === Number(saved)) : null;
-                setSelectedServer(found || serversData[0]);
-            }
-            const tasksData = await apiService.getTasks();
-            setTasks(tasksData);
-        } catch (error) {
-            console.error('Failed to load data:', error);
-            navigate('/login');
-        }
-    };
+  const handleCompleteTask = async (taskId: number) => {
+    try {
+      const response = await apiService.completeTask(taskId);
+      alert(`Task completed! You earned ${response.points_earned} points.`);
+      const userData = await apiService.getCurrentUser();
+      setUser(userData);
+      await loadTasks(selectedServer?.id);
+    } catch (error) {
+      alert(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
-    const loadTasks = async () => {
-        try {
-            const tasksData = await apiService.getTasks(selectedServer?.id);
-            setTasks(tasksData);
-        } catch (error) {
-            console.error('Failed to load tasks:', error);
-        }
-    };
+  const handleDeleteTask = async (taskId: number) => {
+    if (!window.confirm('Delete this task?')) return;
+    try {
+      await apiService.deleteTask(taskId);
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    } catch (error) {
+      alert(`Failed to delete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
-    useEffect(() => {
-        loadInitialData();
-    }, []);
+  const handleUpdateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTask) return;
+    try {
+      const updated = await apiService.updateTask(editingTask.id, {
+        title: editingTask.title,
+        description: editingTask.description,
+        priority: editingTask.priority,
+        points_value: editingTask.points_value,
+        due_date: editingTask.due_date,
+        recurrence: editingTask.recurrence,
+      });
+      setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setEditingTask(null);
+    } catch (error) {
+      alert(`Failed to update task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
 
-    useEffect(() => {
-        if (user) {
-            loadTasks();
-        }
-    }, [selectedServer]);
+  const pointsToday = useMemo(
+    () =>
+      tasks
+        .filter((task) => task.is_completed)
+        .reduce((sum, task) => sum + (task.points_value || 0), 0),
+    [tasks]
+  );
+  const currentPoints = user?.profile.points ?? 0;
+  const nextTier = Math.max(600, Math.ceil((currentPoints + 1) / 500) * 500);
+  const progress = Math.min((pointsToday / nextTier) * 100, 100);
+  const priorityCounts = useMemo(
+    () => ({
+      high: tasks.filter((t) => t.priority === 'HIGH').length,
+      medium: tasks.filter((t) => t.priority === 'MEDIUM').length,
+      low: tasks.filter((t) => t.priority === 'LOW').length,
+    }),
+    [tasks]
+  );
+  const activeChallenges = useMemo(() => {
+    if (!user) return [];
+    return competitions
+      .filter((competition) => competition.status !== 'COMPLETED')
+      .map((competition) => {
+        const youAreChallenger = competition.challenger === user.id;
+        return {
+          id: competition.id,
+          opponent: youAreChallenger ? competition.opponent_username : competition.challenger_username,
+          task: selectedServer?.name || 'General competition',
+          status: competition.status === 'ACTIVE' ? 'Active' : 'Pending',
+          yourScore: youAreChallenger ? competition.challenger_score : competition.opponent_score,
+          theirScore: youAreChallenger ? competition.opponent_score : competition.challenger_score,
+        };
+      })
+      .slice(0, 4);
+  }, [competitions, user, selectedServer]);
 
-    const handleSelectServer = (server: VieServer) => {
-        setSelectedServer(server);
-        localStorage.setItem('selectedServerId', String(server.id));
-        setShowServerDropdown(false);
-    };
+  const tagClassForPriority = (priority: Task['priority']) => {
+    if (priority === 'HIGH') return 'tag tag-high';
+    if (priority === 'LOW') return 'tag tag-low';
+    return 'tag tag-medium';
+  };
 
-    const handleCreateServer = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const server = await apiService.createServer({ name: newServerName, description: newServerDesc });
-            setServers([...servers, server]);
-            setSelectedServer(server);
-            localStorage.setItem('selectedServerId', String(server.id));
-            setShowCreateServer(false);
-            setNewServerName('');
-            setNewServerDesc('');
-        } catch (error) {
-            alert('Failed to create server: ' + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    };
-
-    const handleSearchServers = async (query: string) => {
-        setJoinServerQuery(query);
-        if (query.trim().length < 1) {
-            setJoinServerResults([]);
-            return;
-        }
-        try {
-            const results = await apiService.searchServers(query);
-            setJoinServerResults(results);
-        } catch (error) {
-            console.error('Failed to search servers:', error);
-        }
-    };
-
-    const handleJoinServer = async (serverId: number) => {
-        try {
-            await apiService.joinServer(serverId);
-            const serversData = await apiService.getServers();
-            setServers(serversData);
-            const joined = serversData.find(s => s.id === serverId);
-            if (joined) {
-                setSelectedServer(joined);
-                localStorage.setItem('selectedServerId', String(joined.id));
-            }
-            setShowJoinServer(false);
-            setJoinServerQuery('');
-            setJoinServerResults([]);
-            alert('Successfully joined server!');
-        } catch (error) {
-            alert('Failed to join server: ' + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    };
-
-    const handleLogout = async () => {
-        try {
-            await apiService.logout();
-            localStorage.removeItem('user');
-            localStorage.removeItem('selectedServerId');
-            navigate('/login');
-        } catch (error) {
-            console.error('Logout failed:', error);
-        }
-    };
-
-    const handleAddTask = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            const taskData = {
-                ...newTask,
-                server: selectedServer?.id || null,
-            };
-            const task = await apiService.createTask(taskData);
-            setTasks([task, ...tasks]);
-            setShowAddTask(false);
-            setNewTask({
-                title: '',
-                description: '',
-                priority: 'MEDIUM',
-                points_value: 10,
-                due_date: '',
-                recurrence: 'NONE'
-            });
-        } catch (error) {
-            alert('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    };
-
-    const handleCompleteTask = async (taskId: number) => {
-        try {
-            const response = await apiService.completeTask(taskId);
-            alert(`Task completed! You earned ${response.points_earned} points!`);
-            const userData = await apiService.getCurrentUser();
-            setUser(userData);
-            await loadTasks();
-        } catch (error) {
-            alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    };
-
-    const handleDeleteTask = async (taskId: number) => {
-        if (window.confirm('Are you sure you want to delete this task?')) {
-            try {
-                await apiService.deleteTask(taskId);
-                setTasks(tasks.filter(t => t.id !== taskId));
-            } catch (error) {
-                alert('Failed to delete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
-            }
-        }
-    };
-
-    const handleUpdateTask = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!editingTask) return;
-        
-        try {
-            const updated = await apiService.updateTask(editingTask.id, {
-                title: editingTask.title,
-                description: editingTask.description,
-                priority: editingTask.priority,
-                points_value: editingTask.points_value,
-                due_date: editingTask.due_date
-            });
-            setTasks(tasks.map(t => t.id === updated.id ? updated : t));
-            setEditingTask(null);
-        } catch (error) {
-            alert('Failed to update task: ' + (error instanceof Error ? error.message : 'Unknown error'));
-        }
-    };
-
-    return (
-        <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                    <h1>Dashboard</h1>
-                    {/* Server Selector Dropdown */}
-                    <div style={{ position: 'relative' }}>
-                        <button
-                            onClick={() => setShowServerDropdown(!showServerDropdown)}
-                            style={{
-                                padding: '8px 16px',
-                                background: '#4CAF50',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                            }}
-                        >
-                            📂 {selectedServer?.name || 'Select Server'}
-                            <span style={{ fontSize: '10px' }}>▼</span>
-                        </button>
-                        {showServerDropdown && (
-                            <div style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                background: 'white',
-                                border: '1px solid #ddd',
-                                borderRadius: '8px',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                zIndex: 1000,
-                                minWidth: '220px',
-                                marginTop: '4px'
-                            }}>
-                                <div style={{ padding: '8px', borderBottom: '1px solid #eee' }}>
-                                    <span style={{ fontSize: '12px', color: '#888', fontWeight: 'bold' }}>YOUR SERVERS</span>
-                                </div>
-                                {servers.map(server => (
-                                    <div
-                                        key={server.id}
-                                        onClick={() => handleSelectServer(server)}
-                                        style={{
-                                            padding: '10px 12px',
-                                            cursor: 'pointer',
-                                            background: selectedServer?.id === server.id ? '#e8f5e9' : 'white',
-                                            borderBottom: '1px solid #f0f0f0',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center'
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = selectedServer?.id === server.id ? '#e8f5e9' : 'white'}
-                                    >
-                                        <span>{server.name}</span>
-                                        {selectedServer?.id === server.id && <span>✓</span>}
-                                    </div>
-                                ))}
-                                <div
-                                    onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}
-                                    style={{
-                                        padding: '10px 12px',
-                                        cursor: 'pointer',
-                                        color: '#4CAF50',
-                                        fontWeight: 'bold',
-                                        borderTop: '1px solid #eee'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                >
-                                    + Create Server
-                                </div>
-                                <div
-                                    onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}
-                                    style={{
-                                        padding: '10px 12px',
-                                        cursor: 'pointer',
-                                        color: '#2196F3',
-                                        fontWeight: 'bold',
-                                        borderTop: '1px solid #eee'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                >
-                                    🔍 Join Server
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div>
-                    <button onClick={() => navigate('/overview')} style={{ marginRight: '10px' }}>
-                        Overview
-                    </button>
-                    <button onClick={() => navigate('/schedule')} style={{ marginRight: '10px' }}>
-                        Schedule
-                    </button>
-                    <button onClick={() => navigate('/leaderboard')} style={{ marginRight: '10px' }}>
-                        Leaderboard
-                    </button>
-                    <button onClick={() => navigate('/competitions')} style={{ marginRight: '10px' }}>
-                        Competitions
-                    </button>
-                    <button onClick={handleLogout}>Logout</button>
-                </div>
-            </div>
-
-            {/* Create Server Modal */}
-            {showCreateServer && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 2000
-                }}>
-                    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '400px' }}>
-                        <h3>Create New Server</h3>
-                        <form onSubmit={handleCreateServer}>
-                            <input
-                                type="text"
-                                placeholder="Server Name"
-                                value={newServerName}
-                                onChange={(e) => setNewServerName(e.target.value)}
-                                required
-                                style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
-                            />
-                            <textarea
-                                placeholder="Description (optional)"
-                                value={newServerDesc}
-                                onChange={(e) => setNewServerDesc(e.target.value)}
-                                style={{ width: '100%', marginBottom: '10px', padding: '8px', minHeight: '60px' }}
-                            />
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="submit">Create</button>
-                                <button type="button" onClick={() => setShowCreateServer(false)}>Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Join Server Modal */}
-            {showJoinServer && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 2000
-                }}>
-                    <div style={{ background: 'white', padding: '24px', borderRadius: '12px', width: '400px' }}>
-                        <h3>🔍 Join a Server</h3>
-                        <input
-                            type="text"
-                            placeholder="Search servers by name..."
-                            value={joinServerQuery}
-                            onChange={(e) => handleSearchServers(e.target.value)}
-                            style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
-                            autoFocus
-                        />
-                        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                            {joinServerResults.length > 0 ? (
-                                joinServerResults.map(server => (
-                                    <div key={server.id} style={{
-                                        padding: '10px 12px',
-                                        border: '1px solid #eee',
-                                        borderRadius: '6px',
-                                        marginBottom: '6px',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontWeight: 'bold' }}>{server.name}</div>
-                                            <div style={{ fontSize: '12px', color: '#888' }}>
-                                                {server.member_count} member{server.member_count !== 1 ? 's' : ''}
-                                            </div>
-                                        </div>
-                                        <button
-                                            onClick={() => handleJoinServer(server.id)}
-                                            style={{ background: '#2196F3', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
-                                        >
-                                            Join
-                                        </button>
-                                    </div>
-                                ))
-                            ) : joinServerQuery.trim() ? (
-                                <p style={{ color: '#888', textAlign: 'center' }}>No servers found</p>
-                            ) : (
-                                <p style={{ color: '#888', textAlign: 'center' }}>Type to search for servers</p>
-                            )}
-                        </div>
-                        <button type="button" onClick={() => { setShowJoinServer(false); setJoinServerQuery(''); setJoinServerResults([]); }}
-                            style={{ marginTop: '10px' }}>
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {user && (
-                <div style={{ 
-                    background: '#f5f5f5', 
-                    padding: '20px', 
-                    borderRadius: '8px', 
-                    marginBottom: '20px',
-                    display: 'flex',
-                    justifyContent: 'space-around'
-                }}>
-                    <div>
-                        <h3>Welcome, {user.username}!</h3>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <h4>Points</h4>
-                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{user.profile.points}</p>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <h4>Current Streak 🔥</h4>
-                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{user.profile.current_streak} days</p>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                        <h4>Longest Streak</h4>
-                        <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{user.profile.longest_streak} days</p>
-                    </div>
-                </div>
-            )}
-
-            <div style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2>My Tasks</h2>
-                    <button onClick={() => setShowAddTask(!showAddTask)}>
-                        {showAddTask ? 'Cancel' : 'Add Task'}
-                    </button>
-                </div>
-
-                {showAddTask && (
-                    <form onSubmit={handleAddTask} style={{ 
-                        background: '#f9f9f9', 
-                        padding: '20px', 
-                        borderRadius: '8px',
-                        marginTop: '10px'
-                    }}>
-                        <input
-                            type="text"
-                            placeholder="Task Title"
-                            value={newTask.title}
-                            onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                            required
-                            style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
-                        />
-                        <textarea
-                            placeholder="Description"
-                            value={newTask.description}
-                            onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                            style={{ width: '100%', marginBottom: '10px', padding: '8px', minHeight: '60px' }}
-                        />
-                        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                            <select
-                                value={newTask.priority}
-                                onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
-                                style={{ padding: '8px' }}
-                            >
-                                <option value="LOW">Low Priority</option>
-                                <option value="MEDIUM">Medium Priority</option>
-                                <option value="HIGH">High Priority</option>
-                            </select>
-                            <input
-                                type="number"
-                                placeholder="Points"
-                                value={newTask.points_value}
-                                onChange={(e) => setNewTask({ ...newTask, points_value: parseInt(e.target.value) })}
-                                min="1"
-                                style={{ padding: '8px' }}
-                            />
-                            <input
-                                type="date"
-                                value={newTask.due_date}
-                                onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                                style={{ padding: '8px' }}
-                            />
-                            <select
-                                value={newTask.recurrence}
-                                onChange={(e) => setNewTask({ ...newTask, recurrence: e.target.value as 'NONE' | 'DAILY' | 'WEEKLY' })}
-                                style={{ padding: '8px' }}
-                            >
-                                <option value="NONE">One-time</option>
-                                <option value="DAILY">Daily</option>
-                                <option value="WEEKLY">Weekly</option>
-                            </select>
-                        </div>
-                        <button type="submit">Create Task</button>
-                    </form>
-                )}
-            </div>
-
-            {editingTask && (
-                <div style={{ 
-                    position: 'fixed', 
-                    top: 0, 
-                    left: 0, 
-                    right: 0, 
-                    bottom: 0, 
-                    background: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    <div style={{ background: 'white', padding: '20px', borderRadius: '8px', width: '500px' }}>
-                        <h3>Edit Task</h3>
-                        <form onSubmit={handleUpdateTask}>
-                            <input
-                                type="text"
-                                value={editingTask.title}
-                                onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })}
-                                style={{ width: '100%', marginBottom: '10px', padding: '8px' }}
-                            />
-                            <textarea
-                                value={editingTask.description}
-                                onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
-                                style={{ width: '100%', marginBottom: '10px', padding: '8px', minHeight: '60px' }}
-                            />
-                            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                                <select
-                                    value={editingTask.priority}
-                                    onChange={(e) => setEditingTask({ ...editingTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
-                                    style={{ padding: '8px' }}
-                                >
-                                    <option value="LOW">Low</option>
-                                    <option value="MEDIUM">Medium</option>
-                                    <option value="HIGH">High</option>
-                                </select>
-                                <input
-                                    type="number"
-                                    value={editingTask.points_value}
-                                    onChange={(e) => setEditingTask({ ...editingTask, points_value: parseInt(e.target.value) })}
-                                    style={{ padding: '8px' }}
-                                />
-                            </div>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                <button type="submit">Save</button>
-                                <button type="button" onClick={() => setEditingTask(null)}>Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            <div>
-                {tasks.length === 0 ? (
-                    <p>No tasks yet. Create your first task to get started!</p>
-                ) : (
-                    tasks.map(task => (
-                        <div key={task.id} style={{
-                            background: task.is_completed ? '#e8f5e9' : 'white',
-                            border: '1px solid #ddd',
-                            padding: '15px',
-                            borderRadius: '8px',
-                            marginBottom: '10px'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                                <div style={{ flex: 1 }}>
-                                    <h3 style={{ margin: '0 0 5px 0' }}>
-                                        {task.title}
-                                        {task.is_completed && ' ✓'}
-                                    </h3>
-                                    {task.description && <p style={{ margin: '5px 0', color: '#666' }}>{task.description}</p>}
-                                    <div style={{ fontSize: '14px', color: '#888' }}>
-                                        <span>Priority: {task.priority} | </span>
-                                        <span>Points: {task.points_value} | </span>
-                                        {task.due_date && <span>Due: {task.due_date} | </span>}
-                                        {task.recurrence && task.recurrence !== 'NONE' && (
-                                            <span>🔄 {task.recurrence} | </span>
-                                        )}
-                                        <span>Created: {new Date(task.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                                <div style={{ display: 'flex', gap: '5px' }}>
-                                    {!task.is_completed && (
-                                        <>
-                                            <button onClick={() => handleCompleteTask(task.id)} style={{ background: '#4CAF50', color: 'white' }}>
-                                                Complete
-                                            </button>
-                                            <button onClick={() => setEditingTask(task)}>
-                                                Edit
-                                            </button>
-                                        </>
-                                    )}
-                                    <button onClick={() => handleDeleteTask(task.id)} style={{ background: '#f44336', color: 'white' }}>
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
+  return (
+    <div className="dashboard">
+      <header className="dash-header">
+        <div className="brand">
+          <span className="brand-mark">V</span>
+          <div>
+            <p className="brand-name">Good afternoon, {user?.first_name || user?.username || 'Camila'}</p>
+            <p className="brand-tag">Ready to stack points and keep the streak alive.</p>
+          </div>
         </div>
-    )
+        <div className="header-actions">
+          <div style={{ position: 'relative' }}>
+            <button className="secondary-btn" onClick={() => setShowServerDropdown((v) => !v)}>
+              📂 {selectedServer?.name || 'Select Server'}
+            </button>
+            {showServerDropdown && (
+              <div className="leaderboard-card" style={{ position: 'absolute', top: '110%', left: 0, minWidth: 260, zIndex: 30 }}>
+                {servers.map((server) => (
+                  <button
+                    key={server.id}
+                    className="ghost-btn full-width"
+                    onClick={() => handleSelectServer(server)}
+                    style={{ justifyContent: 'space-between', marginBottom: 6 }}
+                  >
+                    <span>{server.name}</span>
+                    {selectedServer?.id === server.id ? '✓' : ''}
+                  </button>
+                ))}
+                <button className="ghost-btn full-width" onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}>
+                  + Create Server
+                </button>
+                <button className="ghost-btn full-width" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
+                  🔍 Join Server
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="ghost-btn" onClick={() => navigate('/overview')}>Overview</button>
+          <button className="ghost-btn" onClick={() => navigate('/schedule')}>Schedule</button>
+          <button className="ghost-btn" onClick={() => navigate('/leaderboard')}>Leaderboard</button>
+          <button className="ghost-btn" onClick={() => navigate('/competitions')}>Competitions</button>
+          <button className="primary-btn" onClick={() => setShowAddTask(true)}>
+            Quick add task
+            <i className="fa-solid fa-circle-plus" />
+          </button>
+          <button className="secondary-btn" onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
+
+      <main className="dash-main">
+        <section className="panel tasks-panel">
+          <div className="panel-head">
+            <div>
+              <p className="panel-kicker">Today</p>
+              <h2>Today&apos;s tasks</h2>
+              <p className="panel-subtitle">Keep momentum with points, streaks, and friendly competition.</p>
+            </div>
+          </div>
+
+          <div className="category-row">
+            <div className="category-pill"><span>High priority</span><strong>{priorityCounts.high}</strong></div>
+            <div className="category-pill"><span>Medium priority</span><strong>{priorityCounts.medium}</strong></div>
+            <div className="category-pill"><span>Low priority</span><strong>{priorityCounts.low}</strong></div>
+          </div>
+
+          <div className="tasks-list">
+            {tasks.length === 0 && <p className="panel-subtitle">No tasks yet. Add your first task.</p>}
+            {tasks.map((task) => (
+              <article key={task.id} className={`task-card ${task.is_completed ? 'done' : ''}`}>
+                <button
+                  className="check-btn"
+                  onClick={() => handleCompleteTask(task.id)}
+                  aria-label={`Mark ${task.title} complete`}
+                  disabled={task.is_completed}
+                >
+                  {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
+                </button>
+                <div className="task-main">
+                  <div className="task-title">
+                    <h3>{task.title}</h3>
+                    <span className={tagClassForPriority(task.priority)}>{task.priority}</span>
+                  </div>
+                  {task.description && <p className="task-notes">{task.description}</p>}
+                  <div className="task-meta">
+                    <span><i className="fa-solid fa-star" /> {task.points_value} pts</span>
+                    {task.due_date && <span><i className="fa-solid fa-clock" /> Due {task.due_date}</span>}
+                    {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {!task.is_completed && (
+                    <button className="edit-btn" onClick={() => setEditingTask(task)}>
+                      Edit
+                      <i className="fa-solid fa-sliders" />
+                    </button>
+                  )}
+                  <button className="ghost-btn" onClick={() => handleDeleteTask(task.id)}>Delete</button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel insight-panel">
+          <div className="stats-grid">
+            <div className="stat-card">
+              <p className="panel-kicker">Points earned</p>
+              <h3>{user?.profile.points ?? 0}</h3>
+              <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
+              <p className="panel-subtitle">{Math.max(nextTier - pointsToday, 0)} points to next reward tier.</p>
+            </div>
+            <div className="stat-card">
+              <p className="panel-kicker">Current streak</p>
+              <h3>{user?.profile.current_streak ?? 0} days</h3>
+              <p className="panel-subtitle">Longest streak: {user?.profile.longest_streak ?? 0} days.</p>
+              <div className="streak-strip">
+                {Array.from({ length: 7 }).map((_, idx) => (
+                  <span key={idx} className={idx < Math.min((user?.profile.current_streak ?? 0), 7) ? 'active' : ''} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="leaderboard-card">
+            <div className="panel-head compact">
+              <div>
+                <p className="panel-kicker">Task highlights</p>
+                <h2>Top tasks</h2>
+              </div>
+              <button className="ghost-btn" onClick={() => navigate('/leaderboard')}>View leaderboard</button>
+            </div>
+            <div className="leaderboard-list">
+              {leaderboardPreview.length === 0 && (
+                <p className="panel-subtitle">No leaderboard data yet for this server.</p>
+              )}
+              {leaderboardPreview.map((entry) => (
+                <div className="leader-row" key={`${entry.rank}-${entry.username}`}>
+                  <div className="rank">#{String(entry.rank).padStart(2, '0')}</div>
+                  <div>
+                    <p>{entry.username}</p>
+                    <span>{entry.current_streak} day streak</span>
+                  </div>
+                  <strong>{entry.points} pts</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="panel challenge-panel">
+          <div className="panel-head">
+            <div>
+              <p className="panel-kicker">1v1 challenges</p>
+              <h2>Friendly competition</h2>
+              <p className="panel-subtitle">Match with a friend on a shared task and climb the points ladder.</p>
+            </div>
+            <div className="challenge-actions">
+              <button className="secondary-btn" onClick={() => navigate('/competitions')}>
+                Start a 1v1 challenge
+                <i className="fa-solid fa-crosshairs" />
+              </button>
+            </div>
+          </div>
+          <div className="challenge-cards">
+            {activeChallenges.length === 0 && (
+              <p className="panel-subtitle">No active challenges right now. Start one from Competitions.</p>
+            )}
+            {activeChallenges.map((challenge) => (
+              <article key={challenge.id} className="challenge-card">
+                <div className="challenge-head">
+                  <div>
+                    <p className="panel-kicker">Active</p>
+                    <h3>{challenge.task}</h3>
+                  </div>
+                  <span className="status-pill">{challenge.status}</span>
+                </div>
+                <div className="challenge-players">
+                  <div><p>You</p><strong>{challenge.yourScore} pts</strong></div>
+                  <div><p>{challenge.opponent}</p><strong>{challenge.theirScore} pts</strong></div>
+                </div>
+                <button className="ghost-btn" onClick={() => navigate('/competitions')}>View matchup</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {showAddTask && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-head">
+              <div>
+                <p className="panel-kicker">Create task</p>
+                <h2>Quick add a new task</h2>
+              </div>
+              <button className="icon-btn" onClick={() => setShowAddTask(false)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={handleAddTask}>
+              <label>Task name
+                <input type="text" placeholder="Finish biology notes" value={newTask.title} onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))} required />
+              </label>
+              <label>Description
+                <textarea rows={3} placeholder="Add context" value={newTask.description} onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))} />
+              </label>
+              <label>Priority
+                <select value={newTask.priority} onChange={(e) => setNewTask((p) => ({ ...p, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' }))}>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </label>
+              <label>Points
+                <input type="number" min="1" value={newTask.points_value} onChange={(e) => setNewTask((p) => ({ ...p, points_value: Number(e.target.value) || 1 }))} />
+              </label>
+              <label>Due date
+                <input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} />
+              </label>
+              <label>Recurrence
+                <select value={newTask.recurrence} onChange={(e) => setNewTask((p) => ({ ...p, recurrence: e.target.value as 'NONE' | 'DAILY' | 'WEEKLY' }))}>
+                  <option value="NONE">One-time</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                </select>
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="ghost-btn" onClick={() => setShowAddTask(false)}>Cancel</button>
+                <button type="submit" className="primary-btn">Add task</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingTask && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-head">
+              <div>
+                <p className="panel-kicker">Edit task</p>
+                <h2>Update details</h2>
+              </div>
+              <button className="icon-btn" onClick={() => setEditingTask(null)}>
+                <i className="fa-solid fa-xmark" />
+              </button>
+            </div>
+            <form className="modal-form" onSubmit={handleUpdateTask}>
+              <label>Task name
+                <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({ ...editingTask, title: e.target.value })} />
+              </label>
+              <label>Description
+                <textarea rows={3} value={editingTask.description} onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })} />
+              </label>
+              <label>Priority
+                <select value={editingTask.priority} onChange={(e) => setEditingTask({ ...editingTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}>
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </label>
+              <label>Points
+                <input type="number" min="1" value={editingTask.points_value} onChange={(e) => setEditingTask({ ...editingTask, points_value: Number(e.target.value) || 1 })} />
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="ghost-btn" onClick={() => setEditingTask(null)}>Close</button>
+                <button type="submit" className="primary-btn">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCreateServer && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-head">
+              <div><p className="panel-kicker">Workspace</p><h2>Create server</h2></div>
+              <button className="icon-btn" onClick={() => setShowCreateServer(false)}><i className="fa-solid fa-xmark" /></button>
+            </div>
+            <form className="modal-form" onSubmit={handleCreateServer}>
+              <label>Server name
+                <input value={newServerName} onChange={(e) => setNewServerName(e.target.value)} required />
+              </label>
+              <label>Description
+                <textarea rows={3} value={newServerDesc} onChange={(e) => setNewServerDesc(e.target.value)} />
+              </label>
+              <div className="modal-actions">
+                <button type="button" className="ghost-btn" onClick={() => setShowCreateServer(false)}>Cancel</button>
+                <button type="submit" className="primary-btn">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showJoinServer && (
+        <div className="overlay" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-head">
+              <div><p className="panel-kicker">Workspace</p><h2>Join server</h2></div>
+              <button className="icon-btn" onClick={() => setShowJoinServer(false)}><i className="fa-solid fa-xmark" /></button>
+            </div>
+            <div className="modal-form">
+              <label>Search
+                <input value={joinServerQuery} onChange={(e) => handleSearchServers(e.target.value)} placeholder="Search by name..." />
+              </label>
+              <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                {joinServerResults.length > 0 ? (
+                  joinServerResults.map((server) => (
+                    <div key={server.id} className="leader-row" style={{ marginBottom: 8 }}>
+                      <div>
+                        <p>{server.name}</p>
+                        <span>{server.member_count} members</span>
+                      </div>
+                      <button className="secondary-btn" onClick={() => handleJoinServer(server.id)}>Join</button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="panel-subtitle">{joinServerQuery ? 'No servers found.' : 'Type to search servers.'}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

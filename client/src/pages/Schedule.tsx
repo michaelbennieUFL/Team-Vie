@@ -82,7 +82,7 @@ export default function Schedule() {
     };
 
     return (
-        <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>📅 Schedule</h1>
                 <div style={{ display: 'flex', gap: '10px' }}>
