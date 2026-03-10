@@ -17,6 +17,7 @@ class Competition(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.IntegerField(default=30)
     
     def __str__(self):
         return f"{self.challenger.username} vs {self.opponent.username}"
