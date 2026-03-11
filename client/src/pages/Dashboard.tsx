@@ -3,11 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import type { Competition, LeaderboardEntry, User, Task, VieServer } from '../services/api';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns a time-aware greeting so the header feels personalised. */
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [servers, setServers] = useState<VieServer[]>([]);
   const [selectedServer, setSelectedServer] = useState<VieServer | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
   const [showServerDropdown, setShowServerDropdown] = useState(false);
   const [showCreateServer, setShowCreateServer] = useState(false);
   const [showJoinServer, setShowJoinServer] = useState(false);
@@ -52,11 +66,17 @@ export default function Dashboard() {
   };
 
   const loadInitialData = async () => {
+    setIsLoading(true);
     try {
-      const userData = await apiService.getCurrentUser();
+      // ── 1. Fetch user & servers in parallel ──────────────────────────────
+      const [userData, serversData] = await Promise.all([
+        apiService.getCurrentUser(),
+        apiService.getServers(),
+      ]);
       setUser(userData);
-      const serversData = await apiService.getServers();
       setServers(serversData);
+
+      // ── 2. Restore last-used server or fall back to first ─────────────────
       if (serversData.length > 0) {
         const saved = localStorage.getItem('selectedServerId');
         const found = saved ? serversData.find((s) => s.id === Number(saved)) : null;
@@ -70,13 +90,25 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Failed to load data:', error);
+      // Redirect to login if the session has expired
       navigate('/login');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+    localStorage.setItem('darkMode', String(darkMode));
+  }, [darkMode]);
 
   useEffect(() => {
     if (selectedServer) {
@@ -261,7 +293,7 @@ export default function Dashboard() {
         <div className="brand">
           <span className="brand-mark">V</span>
           <div>
-            <p className="brand-name">Good afternoon, {user?.first_name || user?.username || 'Camila'}</p>
+            <p className="brand-name">{getGreeting()}, {user?.first_name || user?.username || 'there'}</p>
             <p className="brand-tag">Ready to stack points and keep the streak alive.</p>
           </div>
         </div>
@@ -301,6 +333,15 @@ export default function Dashboard() {
             <i className="fa-solid fa-circle-plus" />
           </button>
           <button className="secondary-btn" onClick={handleLogout}>Logout</button>
+          <button
+            className="secondary-btn"
+            onClick={() => setDarkMode((v) => !v)}
+            aria-label="Toggle dark mode"
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{ fontSize: 18, padding: '10px 14px' }}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
         </div>
       </header>
 
@@ -321,7 +362,13 @@ export default function Dashboard() {
           </div>
 
           <div className="tasks-list">
-            {tasks.length === 0 && <p className="panel-subtitle">No tasks yet. Add your first task.</p>}
+            {isLoading && (
+              <p className="panel-subtitle" style={{ textAlign: 'center', padding: '24px 0' }}>
+                <i className="fa-solid fa-circle-notch fa-spin" style={{ marginRight: 8 }} />
+                Loading tasks…
+              </p>
+            )}
+            {!isLoading && tasks.length === 0 && <p className="panel-subtitle">No tasks yet. Add your first task.</p>}
             {tasks.map((task) => (
               <article key={task.id} className={`task-card ${task.is_completed ? 'done' : ''}`}>
                 <button
