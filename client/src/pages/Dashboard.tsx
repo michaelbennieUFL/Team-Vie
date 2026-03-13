@@ -1,7 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
-import type { Competition, LeaderboardEntry, User, Task, VieServer } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
+import type {
+  CelebrationPayload,
+  Competition,
+  LeaderboardEntry,
+  MotivationQuote,
+  Task,
+  User,
+  VieServer,
+} from '../services/api';
+
+const CONFETTI_PIECES = Array.from({ length: 18 }, (_, index) => ({
+  id: index,
+  left: `${6 + (index % 6) * 16}%`,
+  delay: `${(index % 6) * 0.12}s`,
+  duration: `${2.8 + (index % 5) * 0.25}s`,
+  rotation: `${(index % 2 === 0 ? 1 : -1) * (18 + index * 6)}deg`,
+}));
+
+const getConfettiStyle = (piece: (typeof CONFETTI_PIECES)[number]): CSSProperties & Record<'--confetti-rotate', string> => ({
+  left: piece.left,
+  animationDelay: piece.delay,
+  animationDuration: piece.duration,
+  '--confetti-rotate': piece.rotation,
+});
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +53,9 @@ export default function Dashboard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [leaderboardPreview, setLeaderboardPreview] = useState<LeaderboardEntry[]>([]);
   const [competitions, setCompetitions] = useState<Competition[]>([]);
+  const [motivation, setMotivation] = useState<MotivationQuote | null>(null);
+  const [celebration, setCelebration] = useState<CelebrationPayload | null>(null);
+  const { isDarkMode, toggleTheme } = useAppTheme();
   const navigate = useNavigate();
 
   const loadTasks = async (serverId?: number) => {
@@ -53,8 +82,12 @@ export default function Dashboard() {
 
   const loadInitialData = async () => {
     try {
-      const userData = await apiService.getCurrentUser();
+      const [userData, quoteData] = await Promise.all([
+        apiService.getCurrentUser(),
+        apiService.getMotivationalQuote(),
+      ]);
       setUser(userData);
+      setMotivation(quoteData);
       const serversData = await apiService.getServers();
       setServers(serversData);
       if (serversData.length > 0) {
@@ -84,6 +117,21 @@ export default function Dashboard() {
       loadSidebarData(selectedServer.id);
     }
   }, [selectedServer]);
+
+  useEffect(() => {
+    if (!celebration) return;
+    const timer = window.setTimeout(() => setCelebration(null), 4800);
+    return () => window.clearTimeout(timer);
+  }, [celebration]);
+
+  const refreshMotivation = async () => {
+    try {
+      const nextQuote = await apiService.getMotivationalQuote();
+      setMotivation(nextQuote);
+    } catch (error) {
+      console.error('Failed to load motivational quote:', error);
+    }
+  };
 
   const handleSelectServer = (server: VieServer) => {
     setSelectedServer(server);
@@ -138,17 +186,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await apiService.logout();
-      localStorage.removeItem('user');
-      localStorage.removeItem('selectedServerId');
-      navigate('/login');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -175,10 +212,15 @@ export default function Dashboard() {
   const handleCompleteTask = async (taskId: number) => {
     try {
       const response = await apiService.completeTask(taskId);
-      alert(`Task completed! You earned ${response.points_earned} points.`);
+      setCelebration(response.celebration);
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? response.task : task)));
       const userData = await apiService.getCurrentUser();
       setUser(userData);
-      await loadTasks(selectedServer?.id);
+      await Promise.all([
+        loadTasks(selectedServer?.id),
+        loadSidebarData(selectedServer?.id),
+        refreshMotivation(),
+      ]);
     } catch (error) {
       alert(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -256,8 +298,10 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="dashboard">
-      <header className="dash-header">
+    <div className={`dashboard ${isDarkMode ? 'dashboard-dark' : ''}`}>
+      <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+
+      <section className="dashboard-topbar">
         <div className="brand">
           <span className="brand-mark">V</span>
           <div>
@@ -292,17 +336,35 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <button className="ghost-btn" onClick={() => navigate('/overview')}>Overview</button>
-          <button className="ghost-btn" onClick={() => navigate('/schedule')}>Schedule</button>
-          <button className="ghost-btn" onClick={() => navigate('/leaderboard')}>Leaderboard</button>
-          <button className="ghost-btn" onClick={() => navigate('/competitions')}>Competitions</button>
           <button className="primary-btn" onClick={() => setShowAddTask(true)}>
             Quick add task
             <i className="fa-solid fa-circle-plus" />
           </button>
-          <button className="secondary-btn" onClick={handleLogout}>Logout</button>
         </div>
-      </header>
+      </section>
+
+      {celebration && (
+        <div className="celebration-overlay" aria-live="polite">
+          <div className="screen-confetti" aria-hidden="true">
+            {CONFETTI_PIECES.map((piece) => (
+              <span
+                key={piece.id}
+                className="confetti-piece screen-piece"
+                style={getConfettiStyle(piece)}
+              />
+            ))}
+          </div>
+          <div className="celebration-popup">
+            <p className="panel-kicker">Keep it up</p>
+            <h2>{celebration.headline}</h2>
+            <p>{celebration.phrase}</p>
+            <div className="celebration-stats">
+              <strong>+{celebration.points_earned} pts</strong>
+              <span>{celebration.current_streak} day streak</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="dash-main">
         <section className="panel tasks-panel">
@@ -359,6 +421,27 @@ export default function Dashboard() {
         </section>
 
         <section className="panel insight-panel">
+          <div className="motivation-card">
+            <div className="panel-head compact">
+              <div>
+                <p className="panel-kicker">Quote bank</p>
+                <h2>Today&apos;s push</h2>
+              </div>
+              <button className="ghost-btn" onClick={refreshMotivation}>Refresh quote</button>
+            </div>
+            {motivation ? (
+              <div className="motivation-body">
+                <p className="motivation-quote">&ldquo;{motivation.quote}&rdquo;</p>
+                <div className="motivation-meta">
+                  <strong>{motivation.author}</strong>
+                  <span>{motivation.tone}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="panel-subtitle">Loading a fresh reminder...</p>
+            )}
+          </div>
+
           <div className="stats-grid">
             <div className="stat-card">
               <p className="panel-kicker">Points earned</p>

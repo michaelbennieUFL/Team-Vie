@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { LeaderboardEntry, VieServer } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 export default function Leaderboard() {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [region, setRegion] = useState('');
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
-    const navigate = useNavigate();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     const loadServers = async () => {
         try {
@@ -39,13 +40,13 @@ export default function Leaderboard() {
     }, [region, selectedServerId]);
 
     return (
-        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
+            <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+            <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>🏆 Leaderboard</h1>
-                <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
             </div>
 
-            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="page-section page-section-tight" style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <select
                     value={selectedServerId || ''}
                     onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
@@ -65,21 +66,21 @@ export default function Leaderboard() {
                 />
             </div>
 
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="page-section page-section-tight" style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--app-text)' }}>
                 <thead>
-                    <tr style={{ background: '#f5f5f5' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Rank</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Username</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Points</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Streak 🔥</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #ddd' }}>Region</th>
+                    <tr style={{ background: 'var(--app-surface-muted)' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Rank</th>
+                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Username</th>
+                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Points</th>
+                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Streak 🔥</th>
+                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Region</th>
                     </tr>
                 </thead>
                 <tbody>
                     {leaderboard.map((entry, index) => (
                         <tr key={index} style={{ 
-                            background: index % 2 === 0 ? 'white' : '#f9f9f9',
-                            borderBottom: '1px solid #eee'
+                            background: index % 2 === 0 ? 'var(--app-surface)' : 'var(--app-surface-subtle)',
+                            borderBottom: '1px solid var(--app-border)'
                         }}>
                             <td style={{ padding: '12px' }}>
                                 {entry.rank === 1 && '🥇'}
@@ -97,7 +98,7 @@ export default function Leaderboard() {
             </table>
 
             {leaderboard.length === 0 && (
-                <p style={{ textAlign: 'center', marginTop: '20px', color: '#888' }}>
+                <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--app-text-muted)' }}>
                     No users on the leaderboard yet.
                 </p>
             )}

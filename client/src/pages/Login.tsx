@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../LoginPage.css';
 import { apiService } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 
 export default function Login() {
@@ -9,6 +10,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { isDarkMode } = useAppTheme();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,7 +26,7 @@ export default function Login() {
     };
 
     return (
-        <div className="login-page">
+        <div className={`login-page ${isDarkMode ? 'login-page-dark' : ''}`}>
             <Link className="ghost-btn login-back" to="/">
                 <i className="fa-solid fa-arrow-left" />
                 Back to main page

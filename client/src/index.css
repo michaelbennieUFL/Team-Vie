@@ -12,6 +12,15 @@ body {
     #f5f4f1;
   color: #0b0d0f;
   line-height: 1.6;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+
+body.app-theme-dark {
+  background:
+    radial-gradient(circle at top right, rgba(32, 214, 181, 0.18), transparent 50%),
+    radial-gradient(circle at 20% 20%, rgba(15, 127, 232, 0.18), transparent 45%),
+    #09131f;
+  color: #eef4fb;
 }
 
 img {

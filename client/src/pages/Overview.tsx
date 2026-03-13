@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { User, Task, VieServer } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 export default function Overview() {
     const [user, setUser] = useState<User | null>(null);
@@ -17,7 +18,7 @@ export default function Overview() {
         due_date: '',
         recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
     });
-    const navigate = useNavigate();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     const loadData = async () => {
         try {
@@ -29,7 +30,6 @@ export default function Overview() {
             setTasks(tasksData);
         } catch (error) {
             console.error('Failed to load data:', error);
-            navigate('/login');
         }
     };
 
@@ -102,23 +102,24 @@ export default function Overview() {
     const completedTasks = tasks.filter(t => t.is_completed);
 
     return (
-        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
+            <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+            <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>📋 Overview — All Tasks</h1>
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={() => setShowAddTask(!showAddTask)}>
                         {showAddTask ? 'Cancel' : '+ Add Task'}
                     </button>
-                    <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
                 </div>
             </div>
 
             {showAddTask && (
-                <form onSubmit={handleAddTask} style={{
-                    background: '#f9f9f9',
+                <form className="page-section" onSubmit={handleAddTask} style={{
+                    background: 'var(--app-surface-muted)',
                     padding: '20px',
                     borderRadius: '8px',
-                    marginBottom: '20px'
+                    marginBottom: '20px',
+                    color: 'var(--app-text)'
                 }}>
                     <h3>Add New Task</h3>
                     <input
@@ -184,13 +185,14 @@ export default function Overview() {
             )}
 
             {user && (
-                <div style={{
-                    background: '#f5f5f5',
+                <div className="page-section" style={{
+                    background: 'var(--app-surface-muted)',
                     padding: '20px',
                     borderRadius: '8px',
                     marginBottom: '20px',
                     display: 'flex',
-                    justifyContent: 'space-around'
+                    justifyContent: 'space-around',
+                    color: 'var(--app-text)'
                 }}>
                     <div style={{ textAlign: 'center' }}>
                         <h4>Total Tasks</h4>
@@ -216,20 +218,21 @@ export default function Overview() {
             )}
 
             {Object.entries(tasksByServer).map(([serverName, serverTasks]) => (
-                <div key={serverName} style={{ marginBottom: '30px' }}>
+                <div key={serverName} className="page-section" style={{ marginBottom: '30px' }}>
                     <h2 style={{ borderBottom: '2px solid #4CAF50', paddingBottom: '8px' }}>
                         📂 {serverName}
-                        <span style={{ fontSize: '14px', color: '#888', marginLeft: '10px' }}>
+                        <span style={{ fontSize: '14px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
                             ({serverTasks.filter(t => !t.is_completed).length} pending)
                         </span>
                     </h2>
                     {serverTasks.map(task => (
                         <div key={task.id} style={{
-                            background: task.is_completed ? '#e8f5e9' : 'white',
-                            border: '1px solid #ddd',
+                            background: task.is_completed ? 'var(--app-success-surface)' : 'var(--app-surface)',
+                            border: '1px solid var(--app-border)',
                             padding: '12px 15px',
                             borderRadius: '8px',
-                            marginBottom: '8px'
+                            marginBottom: '8px',
+                            color: 'var(--app-text)'
                         }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div>
@@ -237,7 +240,7 @@ export default function Overview() {
                                         {task.title}
                                         {task.is_completed && ' ✓'}
                                     </span>
-                                    <span style={{ fontSize: '12px', color: '#888', marginLeft: '10px' }}>
+                                    <span style={{ fontSize: '12px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
                                         {task.priority} • {task.points_value} pts
                                         {task.due_date && ` • Due: ${task.due_date}`}
                                         {task.recurrence && task.recurrence !== 'NONE' && ` • 🔄 ${task.recurrence}`}
@@ -266,7 +269,7 @@ export default function Overview() {
             ))}
 
             {tasks.length === 0 && (
-                <p style={{ textAlign: 'center', color: '#888', marginTop: '40px' }}>
+                <p style={{ textAlign: 'center', color: 'var(--app-text-muted)', marginTop: '40px' }}>
                     No tasks yet. Click "+ Add Task" above to create your first task!
                 </p>
             )}

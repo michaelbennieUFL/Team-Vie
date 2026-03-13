@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { Task } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 export default function Schedule() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const navigate = useNavigate();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     useEffect(() => {
         const loadTasks = async () => {
@@ -15,7 +16,6 @@ export default function Schedule() {
                 setTasks(tasksData);
             } catch (error) {
                 console.error('Failed to load tasks:', error);
-                navigate('/login');
             }
         };
         loadTasks();
@@ -82,21 +82,19 @@ export default function Schedule() {
     };
 
     return (
-        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
+            <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+            <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>📅 Schedule</h1>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
-                </div>
             </div>
 
-            <div style={{
+            <div className="page-section" style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 marginBottom: '20px',
                 padding: '10px 20px',
-                background: '#f5f5f5',
+                background: 'var(--app-surface-muted)',
                 borderRadius: '8px'
             }}>
                 <button onClick={prevMonth} style={{ padding: '8px 16px', cursor: 'pointer' }}>← Prev</button>
@@ -107,12 +105,12 @@ export default function Schedule() {
                 <button onClick={nextMonth} style={{ padding: '8px 16px', cursor: 'pointer' }}>Next →</button>
             </div>
 
-            <div style={{
+            <div className="page-section" style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
                 gap: '1px',
-                background: '#ddd',
-                border: '1px solid #ddd',
+                background: 'var(--app-border)',
+                border: '1px solid var(--app-border)',
                 borderRadius: '8px',
                 overflow: 'hidden'
             }}>
@@ -121,7 +119,8 @@ export default function Schedule() {
                         padding: '10px',
                         textAlign: 'center',
                         fontWeight: 'bold',
-                        background: '#e8e8e8',
+                        background: 'var(--app-surface-muted)',
+                        color: 'var(--app-text)',
                         fontSize: '14px'
                     }}>
                         {day}
@@ -138,7 +137,7 @@ export default function Schedule() {
                         <div
                             key={index}
                             style={{
-                                background: isToday ? '#e3f2fd' : day ? 'white' : '#fafafa',
+                                background: isToday ? 'var(--app-calendar-today)' : day ? 'var(--app-surface)' : 'var(--app-surface-subtle)',
                                 minHeight: '100px',
                                 padding: '4px',
                                 verticalAlign: 'top'
@@ -150,10 +149,10 @@ export default function Schedule() {
                                         fontWeight: isToday ? 'bold' : 'normal',
                                         fontSize: '14px',
                                         padding: '2px 6px',
-                                        color: isToday ? '#1976D2' : '#333',
+                                        color: isToday ? 'var(--app-calendar-today-text)' : 'var(--app-text)',
                                         display: 'inline-block',
                                         borderRadius: isToday ? '50%' : '0',
-                                        background: isToday ? '#bbdefb' : 'transparent',
+                                        background: isToday ? 'var(--app-calendar-today-pill)' : 'transparent',
                                         marginBottom: '2px'
                                     }}>
                                         {day}
@@ -179,13 +178,13 @@ export default function Schedule() {
                                                     padding: '2px 4px',
                                                     marginBottom: '1px',
                                                     borderRadius: '3px',
-                                                    background: task.is_completed ? '#c8e6c9' : '#fff3e0',
+                                                    background: task.is_completed ? 'var(--app-success-surface)' : 'var(--app-warning-surface)',
                                                     borderLeft: `3px solid ${getPriorityColor(task.priority)}`,
                                                     whiteSpace: 'nowrap',
                                                     overflow: 'hidden',
                                                     textOverflow: 'ellipsis',
                                                     textDecoration: task.is_completed ? 'line-through' : 'none',
-                                                    color: task.is_completed ? '#888' : '#333'
+                                                    color: task.is_completed ? 'var(--app-text-muted)' : 'var(--app-text)'
                                                 }}
                                                 title={`${task.title} (${task.priority}, ${task.points_value} pts)${task.recurrence !== 'NONE' ? ` 🔄 ${task.recurrence}` : ''}`}
                                             >
@@ -194,7 +193,7 @@ export default function Schedule() {
                                             </div>
                                         ))}
                                         {dayTasks.length > 3 && (
-                                            <div style={{ fontSize: '10px', color: '#888', padding: '1px 4px' }}>
+                                            <div style={{ fontSize: '10px', color: 'var(--app-text-muted)', padding: '1px 4px' }}>
                                                 +{dayTasks.length - 3} more
                                             </div>
                                         )}
@@ -206,7 +205,7 @@ export default function Schedule() {
                 })}
             </div>
 
-            <div style={{ marginTop: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px' }}>
+            <div className="page-section" style={{ marginTop: '20px', padding: '15px', background: 'var(--app-surface-muted)', borderRadius: '8px', color: 'var(--app-text)' }}>
                 <h3>Legend</h3>
                 <div style={{ display: 'flex', gap: '20px', fontSize: '13px' }}>
                     <span><span style={{ display: 'inline-block', width: '12px', height: '12px', background: '#f44336', borderRadius: '2px', marginRight: '4px' }}></span> High Priority</span>

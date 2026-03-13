@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 const tourTabs = [
   {
@@ -42,13 +43,14 @@ const tourTabs = [
 
 export default function Landing() {
   const [activeTab, setActiveTab] = useState('tasks');
+  const { isDarkMode } = useAppTheme();
   const activeTour = useMemo(
     () => tourTabs.find((tab) => tab.id === activeTab) ?? tourTabs[0],
     [activeTab]
   );
 
   return (
-    <div className="page">
+    <div className={`page ${isDarkMode ? 'page-dark' : ''}`}>
       <header className="site-header">
         <div className="brand">
           <span className="brand-mark">V</span>

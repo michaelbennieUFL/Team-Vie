@@ -9,6 +9,7 @@ from django.db.models.functions import Rank
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import UserProfile
 from .serializers import UserSerializer, RegisterSerializer, LeaderboardSerializer
+from .motivation import get_random_quote
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -55,6 +56,12 @@ def logout_view(request):
 @permission_classes([IsAuthenticated])
 def current_user_view(request):
     return Response(UserSerializer(request.user).data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def motivational_quote_view(request):
+    return Response(get_random_quote())
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

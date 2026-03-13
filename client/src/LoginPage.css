@@ -9,6 +9,13 @@
   position: relative;
 }
 
+.login-page-dark {
+  background: radial-gradient(circle at top, rgba(32, 214, 181, 0.16), transparent 55%),
+    radial-gradient(circle at 80% 20%, rgba(15, 127, 232, 0.14), transparent 52%),
+    #09131f;
+  color: #eef4fb;
+}
+
 .login-back {
   position: absolute;
   top: 24px;
@@ -16,6 +23,12 @@
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(6px);
+}
+
+.login-page-dark .login-back {
+  background: rgba(12, 22, 34, 0.82);
+  border-color: rgba(184, 208, 232, 0.12);
+  color: #eef4fb;
 }
 
 .login-shell {
@@ -28,6 +41,13 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.login-page-dark .login-shell {
+  background: rgba(12, 22, 34, 0.94);
+  border-color: rgba(184, 208, 232, 0.12);
+  color: #eef4fb;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.28);
 }
 
 .login-brand {
@@ -46,6 +66,12 @@
 .login-subtitle {
   color: var(--muted);
   margin: 0;
+}
+
+.login-page-dark .login-subtitle,
+.login-page-dark .brand-tag,
+.login-page-dark .login-meta {
+  color: rgba(224, 233, 245, 0.72);
 }
 
 .login-form {
@@ -71,6 +97,12 @@
   font: inherit;
 }
 
+.login-page-dark .login-form input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(184, 208, 232, 0.14);
+  color: #eef4fb;
+}
+
 .login-form input:focus {
   border-color: var(--accent-2);
   outline: 2px solid rgba(15, 127, 232, 0.15);
@@ -87,6 +119,10 @@
   color: var(--accent-2);
   font-weight: 600;
   text-decoration: none;
+}
+
+.login-page-dark .login-meta a {
+  color: #8fd3ff;
 }
 
 @media (max-width: 640px) {
