@@ -4,6 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Task
 from .serializers import TaskSerializer
+from users.motivation import build_celebration_payload
 
 class TaskViewSet(viewsets.ModelViewSet):
     serializer_class = TaskSerializer
@@ -31,5 +32,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         return Response({
             'message': 'Task completed successfully',
             'points_earned': task.points_value,
-            'task': TaskSerializer(task).data
+            'task': TaskSerializer(task).data,
+            'celebration': build_celebration_payload(
+                task_title=task.title,
+                points_earned=task.points_value,
+                current_streak=task.user.profile.current_streak,
+            ),
         })

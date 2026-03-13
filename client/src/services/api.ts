@@ -75,6 +75,19 @@ export interface LeaderboardEntry {
   rank: number;
 }
 
+export interface MotivationQuote {
+  quote: string;
+  author: string;
+  tone: string;
+}
+
+export interface CelebrationPayload {
+  headline: string;
+  phrase: string;
+  points_earned: number;
+  current_streak: number;
+}
+
 export interface UserSearchResult {
   id: number;
   username: string;
@@ -175,6 +188,14 @@ class ApiService {
     return this.handleResponse<User>(response);
   }
 
+  async getMotivationalQuote() {
+    const response = await fetch(`${API_BASE_URL}/users/motivation/`, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<MotivationQuote>(response);
+  }
+
   // Tasks
   async getTasks(serverId?: number) {
     const url = serverId 
@@ -224,7 +245,7 @@ class ApiService {
       headers: this.getHeaders(),
       credentials: 'include',
     });
-    return this.handleResponse<{ message: string; points_earned: number; task: Task }>(response);
+    return this.handleResponse<{ message: string; points_earned: number; task: Task; celebration: CelebrationPayload }>(response);
   }
 
   // Leaderboard

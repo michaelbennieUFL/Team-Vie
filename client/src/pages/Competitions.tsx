@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
+import { useAppTheme } from '../hooks/useAppTheme';
 
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
@@ -14,7 +15,7 @@ export default function Competitions() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
-    const navigate = useNavigate();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     const loadCompetitions = async () => {
         try {
@@ -152,23 +153,24 @@ export default function Competitions() {
     };
 
     return (
-        <div className='vie-app-page' style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
+            <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
+            <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1>⚔️ Competitions</h1>
                 <div>
                     <button onClick={() => setShowCreate(!showCreate)} style={{ marginRight: '10px' }}>
                         {showCreate ? 'Cancel' : 'New Competition'}
                     </button>
-                    <button onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
                 </div>
             </div>
 
             {showCreate && (
-                <form onSubmit={handleCreateCompetition} style={{
-                    background: '#f9f9f9',
+                <form className="page-section" onSubmit={handleCreateCompetition} style={{
+                    background: 'var(--app-surface-muted)',
                     padding: '20px',
                     borderRadius: '8px',
-                    marginBottom: '20px'
+                    marginBottom: '20px',
+                    color: 'var(--app-text)'
                 }}>
                     <h3>Create New Competition</h3>
                     <div style={{ position: 'relative', marginBottom: '10px' }}>
@@ -190,8 +192,8 @@ export default function Competitions() {
                                 position: 'absolute',
                                 top: '100%',
                                 left: 0,
-                                background: 'white',
-                                border: '1px solid #ddd',
+                                background: 'var(--app-surface)',
+                                border: '1px solid var(--app-border)',
                                 borderRadius: '6px',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 zIndex: 1000,
@@ -212,8 +214,8 @@ export default function Competitions() {
                                             cursor: 'pointer',
                                             borderBottom: '1px solid #f0f0f0'
                                         }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--app-surface-muted)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'var(--app-surface)'}
                                     >
                                         {user.username}
                                     </div>
@@ -225,7 +227,7 @@ export default function Competitions() {
                 </form>
             )}
 
-            <div style={{ marginBottom: '20px' }}>
+            <div className="page-section page-section-tight" style={{ marginBottom: '20px' }}>
                 <select
                     value={selectedServerId || ''}
                     onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
@@ -243,11 +245,12 @@ export default function Competitions() {
                     <button onClick={() => setSelectedCompetition(null)} style={{ marginBottom: '10px' }}>
                         ← Back to List
                     </button>
-                    <div style={{ 
-                        background: 'white', 
+                    <div className="page-section" style={{ 
+                        background: 'var(--app-surface)', 
                         border: '2px solid #4CAF50',
                         padding: '20px', 
-                        borderRadius: '8px'
+                        borderRadius: '8px',
+                        color: 'var(--app-text)'
                     }}>
                         <h2>{selectedCompetition.challenger_username} vs {selectedCompetition.opponent_username}</h2>
                         <div style={{ 
@@ -255,7 +258,7 @@ export default function Competitions() {
                             justifyContent: 'space-around', 
                             margin: '20px 0',
                             padding: '15px',
-                            background: '#f5f5f5',
+                            background: 'var(--app-surface-muted)',
                             borderRadius: '8px'
                         }}>
                             <div style={{ textAlign: 'center' }}>
@@ -273,10 +276,11 @@ export default function Competitions() {
                         {selectedCompetition.tasks && selectedCompetition.tasks.length > 0 ? (
                             selectedCompetition.tasks.map(task => (
                                 <div key={task.id} style={{
-                                    background: '#f9f9f9',
+                                    background: 'var(--app-surface-muted)',
                                     padding: '15px',
                                     borderRadius: '8px',
-                                    marginBottom: '10px'
+                                    marginBottom: '10px',
+                                    color: 'var(--app-text)'
                                 }}>
                                     <h4>{task.title}</h4>
                                     <p>{task.description}</p>
@@ -311,8 +315,8 @@ export default function Competitions() {
                     <h2>Active Competitions</h2>
                     {competitions.filter(c => c.status === 'ACTIVE').length > 0 ? (
                         competitions.filter(c => c.status === 'ACTIVE').map(competition => (
-                            <div key={competition.id} style={{
-                                background: 'white',
+                            <div key={competition.id} className="page-section page-section-tight" style={{
+                                background: 'var(--app-surface)',
                                 border: '2px solid #4CAF50',
                                 padding: '15px',
                                 borderRadius: '8px',
@@ -333,8 +337,8 @@ export default function Competitions() {
                     <h2 style={{ marginTop: '30px' }}>Pending Invitations</h2>
                     {competitions.filter(c => c.status === 'PENDING').length > 0 ? (
                         competitions.filter(c => c.status === 'PENDING').map(competition => (
-                            <div key={competition.id} style={{
-                                background: 'white',
+                            <div key={competition.id} className="page-section page-section-tight" style={{
+                                background: 'var(--app-surface)',
                                 border: '2px solid #FFA500',
                                 padding: '15px',
                                 borderRadius: '8px',
@@ -353,8 +357,8 @@ export default function Competitions() {
                     <h2 style={{ marginTop: '30px' }}>Completed Competitions</h2>
                     {competitions.filter(c => c.status === 'COMPLETED').length > 0 ? (
                         competitions.filter(c => c.status === 'COMPLETED').map(competition => (
-                            <div key={competition.id} style={{
-                                background: 'white',
+                            <div key={competition.id} className="page-section page-section-tight" style={{
+                                background: 'var(--app-surface)',
                                 border: '2px solid #888',
                                 padding: '15px',
                                 borderRadius: '8px',
