@@ -53,7 +53,8 @@ export default function Landing() {
     <div className={`page ${isDarkMode ? 'page-dark' : ''}`}>
       <header className="site-header">
         <div className="brand">
-          <span className="brand-mark">V</span>
+          <span className="brand-mark" onClick={() => {
+            window.scrollTo(0, 0);}}>V</span>
           <div>
             <p className="brand-name">Vie</p>
             <p className="brand-tag">Accountability, turned competitive.</p>

@@ -108,6 +108,13 @@
   font-family: 'Unbounded', cursive;
   font-weight: 700;
   font-size: 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.2s ease;
+}
+
+.brand-mark:hover {
+  opacity: 0.8;;
 }
 
 .brand-name {

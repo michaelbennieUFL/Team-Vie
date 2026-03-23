@@ -303,7 +303,8 @@ export default function Dashboard() {
 
       <section className="dashboard-topbar">
         <div className="brand">
-          <span className="brand-mark">V</span>
+          <span className="brand-mark" onClick={
+            () => window.scrollTo(0, 0)}>V</span>
           <div>
             <p className="brand-name">Good afternoon, {user?.first_name || user?.username || 'Camila'}</p>
             <p className="brand-tag">Ready to stack points and keep the streak alive.</p>
