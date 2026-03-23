@@ -147,6 +147,7 @@ button {
 .primary-btn,
 .secondary-btn,
 .ghost-btn {
+  text-decoration: none;
   border-radius: 999px;
   padding: 12px 20px;
   border: none;
