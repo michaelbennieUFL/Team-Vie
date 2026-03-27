@@ -15,7 +15,7 @@ export default function Register() {
     });
     const [error, setError] = useState('');
     const navigate = useNavigate();
-    const { isDarkMode } = useAppTheme();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -27,7 +27,7 @@ export default function Register() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        
+
         try {
             await apiService.register(formData);
             alert('Registration successful! Please login.');
@@ -39,6 +39,18 @@ export default function Register() {
 
     return (
         <div className={`login-page ${isDarkMode ? 'login-page-dark' : ''}`}>
+            {/* Theme toggle — top-right corner, consistent with protected pages */}
+            <button
+                type="button"
+                className="theme-icon-btn login-theme-btn"
+                onClick={toggleTheme}
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                style={{ position: 'absolute', top: '16px', right: '20px' }}
+            >
+                {isDarkMode ? '☀' : '☾'}
+            </button>
+
             <Link className="ghost-btn login-back" to="/">
                 <i className="fa-solid fa-arrow-left" />
                 Back to main page

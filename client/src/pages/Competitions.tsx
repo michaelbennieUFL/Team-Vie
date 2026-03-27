@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
@@ -17,73 +17,127 @@ export default function Competitions() {
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const { isDarkMode, toggleTheme } = useAppTheme();
 
-    const loadCompetitions = async () => {
+    // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
+    // Keeping a ref to the latest selectedServerId ensures the WebSocket
+    // onmessage handler always re-fetches with the correct server filter,
+    // even though the handler is created only once.
+    const selectedServerIdRef = useRef(selectedServerId);
+    const selectedCompetitionRef = useRef(selectedCompetition);
+    useEffect(() => { selectedServerIdRef.current = selectedServerId; }, [selectedServerId]);
+    useEffect(() => { selectedCompetitionRef.current = selectedCompetition; }, [selectedCompetition]);
+
+    // ─── Load competitions ─────────────────────────────────────────────────────
+    // useCallback so we can safely put it in the WS ref below without
+    // recreating the WebSocket on every render.
+    const loadCompetitions = useCallback(async (serverId?: number) => {
         try {
-            const data = await apiService.getCompetitions(selectedServerId);
+            // Use the passed serverId or fall back to the latest ref value
+            const sid = serverId !== undefined ? serverId : selectedServerIdRef.current;
+            const data = await apiService.getCompetitions(sid);
             setCompetitions(data);
-            if (selectedCompetition) {
-                const updated = data.find(c => c.id === selectedCompetition.id);
+
+            // Keep the open competition detail in sync with fresh server data
+            const current = selectedCompetitionRef.current;
+            if (current) {
+                const updated = data.find(c => c.id === current.id);
                 if (updated) setSelectedCompetition(updated);
             }
         } catch (error) {
             console.error('Failed to load competitions:', error);
         }
-    };
+    }, []); // no deps — relies on refs for fresh values
 
-    const connectWebSocket = (competitionId: number) => {
-        if (ws) ws.close();
-        
+    // ─── WebSocket ─────────────────────────────────────────────────────────────
+    const connectWebSocket = useCallback((competitionId: number) => {
+        // Close any existing socket before opening a new one
+        setWs(prev => {
+            if (prev) prev.close();
+            return null;
+        });
+
         const websocket = new WebSocket(`ws://localhost:8000/ws/competition/${competitionId}/`);
-        
+
         websocket.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected for competition', competitionId);
         };
-        
+
         websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'task_update') {
-                loadCompetitions();
+            try {
+                const msg = JSON.parse(event.data);
+                // FIX: re-fetch the full competition state from the server so
+                // both players' scores are always accurate.  The old code called
+                // loadCompetitions() captured in an earlier closure which still
+                // held a stale selectedServerId, so the re-fetch sometimes used
+                // the wrong server filter or used an old function reference.
+                if (msg.type === 'task_update') {
+                    loadCompetitions(); // always uses ref-based fresh values
+                }
+            } catch (err) {
+                console.error('WebSocket message parse error:', err);
             }
         };
-        
+
         websocket.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
-        
-        setWs(websocket);
-    };
 
-    const loadUserAndCompetitions = async () => {
-        try {
-            const user = await apiService.getCurrentUser();
-            setCurrentUser(user);
-            const serversData = await apiService.getServers();
-            setServers(serversData);
-            const saved = localStorage.getItem('selectedServerId');
-            if (saved) setSelectedServerId(Number(saved));
-            await loadCompetitions();
-        } catch (error) {
-            console.error('Failed to load user:', error);
-        }
-    };
-
-    useEffect(() => {
-        loadUserAndCompetitions();
-        return () => {
-            if (ws) ws.close();
+        websocket.onclose = () => {
+            console.log('WebSocket closed for competition', competitionId);
         };
-    }, []);
 
+        setWs(websocket);
+    }, [loadCompetitions]);
+
+    // ─── Bootstrap ────────────────────────────────────────────────────────────
     useEffect(() => {
-        loadCompetitions();
-    }, [selectedServerId]);
+        const init = async () => {
+            try {
+                const [user, serversData] = await Promise.all([
+                    apiService.getCurrentUser(),
+                    apiService.getServers(),
+                ]);
+                setCurrentUser(user);
+                setServers(serversData);
 
+                const saved = localStorage.getItem('selectedServerId');
+                const sid = saved ? Number(saved) : undefined;
+                if (sid) setSelectedServerId(sid);
+
+                await loadCompetitions(sid);
+            } catch (error) {
+                console.error('Failed to initialise competitions page:', error);
+            }
+        };
+        init();
+
+        // Cleanup: close the socket when leaving the page
+        return () => {
+            setWs(prev => {
+                if (prev) prev.close();
+                return null;
+            });
+        };
+    }, [loadCompetitions]);
+
+    // Reload when server filter changes
+    useEffect(() => {
+        loadCompetitions(selectedServerId);
+    }, [selectedServerId, loadCompetitions]);
+
+    // Connect/reconnect WebSocket when the active competition changes
     useEffect(() => {
         if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
             connectWebSocket(selectedCompetition.id);
+        } else {
+            // Close any open socket when there is no active competition selected
+            setWs(prev => {
+                if (prev) prev.close();
+                return null;
+            });
         }
-    }, [selectedCompetition]);
+    }, [selectedCompetition?.id, selectedCompetition?.status, connectWebSocket]);
 
+    // ─── Handlers ─────────────────────────────────────────────────────────────
     const handleSearchOpponent = async (query: string) => {
         setOpponentQuery(query);
         setSelectedOpponent(null);
@@ -130,28 +184,31 @@ export default function Competitions() {
 
     const handleCompleteTask = async (taskId: number) => {
         if (!selectedCompetition) return;
-        
+
         try {
-            await apiService.completeCompetitionTask(selectedCompetition.id, taskId);
-            
-            // Send WebSocket update
+            // FIX: use the competition returned by the API to immediately update
+            // scores in the UI — no need to wait for the WebSocket round-trip.
+            const result = await apiService.completeCompetitionTask(selectedCompetition.id, taskId);
+
+            // Update state directly from the authoritative API response
+            setSelectedCompetition(result.competition);
+            setCompetitions(prev =>
+                prev.map(c => c.id === result.competition.id ? result.competition : c)
+            );
+
+            // Also notify the opponent's client via WebSocket
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                     type: 'task_completed',
                     task_id: taskId,
-                    user: 'current_user',
-                    challenger_score: selectedCompetition.challenger_score,
-                    opponent_score: selectedCompetition.opponent_score
                 }));
             }
-            
-            await loadCompetitions();
-            alert('Task completed!');
         } catch (error) {
             alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
+    // ─── Render ───────────────────────────────────────────────────────────────
     return (
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
@@ -212,7 +269,7 @@ export default function Competitions() {
                                         style={{
                                             padding: '8px 12px',
                                             cursor: 'pointer',
-                                            borderBottom: '1px solid #f0f0f0'
+                                            borderBottom: '1px solid var(--app-border)'
                                         }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'var(--app-surface-muted)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'var(--app-surface)'}
@@ -245,17 +302,17 @@ export default function Competitions() {
                     <button onClick={() => setSelectedCompetition(null)} style={{ marginBottom: '10px' }}>
                         ← Back to List
                     </button>
-                    <div className="page-section" style={{ 
-                        background: 'var(--app-surface)', 
+                    <div className="page-section" style={{
+                        background: 'var(--app-surface)',
                         border: '2px solid #4CAF50',
-                        padding: '20px', 
+                        padding: '20px',
                         borderRadius: '8px',
                         color: 'var(--app-text)'
                     }}>
                         <h2>{selectedCompetition.challenger_username} vs {selectedCompetition.opponent_username}</h2>
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-around', 
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-around',
                             margin: '20px 0',
                             padding: '15px',
                             background: 'var(--app-surface-muted)',
@@ -271,7 +328,7 @@ export default function Competitions() {
                                 <p style={{ fontSize: '32px', fontWeight: 'bold' }}>{selectedCompetition.opponent_score}</p>
                             </div>
                         </div>
-                        
+
                         <h3>Tasks</h3>
                         {selectedCompetition.tasks && selectedCompetition.tasks.length > 0 ? (
                             selectedCompetition.tasks.map(task => (

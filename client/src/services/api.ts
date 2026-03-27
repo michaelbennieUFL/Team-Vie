@@ -93,6 +93,19 @@ export interface UserSearchResult {
   username: string;
 }
 
+// ─── Auth redirect helper ────────────────────────────────────────────────────
+// Called whenever the server returns 401 or 403 so the client is always
+// returned to the login page when a session expires or becomes invalid.
+function handleUnauthenticated() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('selectedServerId');
+  // Only redirect when we are not already on a public page
+  const publicPaths = ['/', '/login', '/register'];
+  if (!publicPaths.includes(window.location.pathname)) {
+    window.location.href = '/login';
+  }
+}
+
 class ApiService {
   private csrfTokenFetched = false;
 
@@ -113,13 +126,12 @@ class ApiService {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    
-    // Get CSRF token from cookie
+
     const csrfToken = this.getCookie('csrftoken');
     if (csrfToken) {
       headers['X-CSRFToken'] = csrfToken;
     }
-    
+
     return headers;
   }
 
@@ -133,7 +145,12 @@ class ApiService {
     return null;
   }
 
+  // FIX: Auth state inconsistency — redirect to login on 401/403
   private async handleResponse<T>(response: Response): Promise<T> {
+    if (response.status === 401 || response.status === 403) {
+      handleUnauthenticated();
+      throw new Error('Session expired. Please log in again.');
+    }
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
@@ -198,7 +215,7 @@ class ApiService {
 
   // Tasks
   async getTasks(serverId?: number) {
-    const url = serverId 
+    const url = serverId
       ? `${API_BASE_URL}/tasks/?server=${serverId}`
       : `${API_BASE_URL}/tasks/`;
     const response = await fetch(url, {
@@ -235,6 +252,10 @@ class ApiService {
       credentials: 'include',
     });
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthenticated();
+        throw new Error('Session expired. Please log in again.');
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
   }
