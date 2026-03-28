@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import F, Window
 from django.db.models.functions import Rank
+from django.core.cache import cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import UserProfile
 from .serializers import UserSerializer, RegisterSerializer, LeaderboardSerializer
@@ -80,6 +81,10 @@ def search_users_view(request):
 def leaderboard_view(request):
     region = request.query_params.get('region', None)
     server_id = request.query_params.get('server', None)
+    cache_key = f"leaderboard:{region or 'all'}:{server_id or 'all'}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data)
     
     profiles = UserProfile.objects.select_related('user')
     if region:
@@ -97,4 +102,5 @@ def leaderboard_view(request):
     ).order_by('-points')[:50]
     
     serializer = LeaderboardSerializer(profiles, many=True)
+    cache.set(cache_key, serializer.data, 60)
     return Response(serializer.data)
