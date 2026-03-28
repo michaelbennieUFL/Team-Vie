@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from hashlib import sha256
+from urllib.parse import urlencode
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import F, Window
@@ -81,7 +83,11 @@ def search_users_view(request):
 def leaderboard_view(request):
     region = request.query_params.get('region', None)
     server_id = request.query_params.get('server', None)
-    cache_key = f"leaderboard:{region or 'all'}:{server_id or 'all'}"
+    cache_query = urlencode({
+        'region': region or '',
+        'server': server_id or '',
+    })
+    cache_key = f"leaderboard:{sha256(cache_query.encode('utf-8')).hexdigest()}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return Response(cached_data)

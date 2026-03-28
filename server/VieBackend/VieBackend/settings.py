@@ -148,6 +148,9 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 
 # Cache settings
+# Use local-memory cache for development so caching works out of the box when
+# running scripts like ./start.sh. In multi-process/production deployments,
+# replace with a shared backend such as Redis or Memcached.
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',

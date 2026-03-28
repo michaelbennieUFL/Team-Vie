@@ -34,8 +34,8 @@ class LeaderboardCacheTests(APITestCase):
         user = User(username='cached-user')
         user.id = 123
 
-        with patch('users.views.UserProfile.objects.select_related') as mock_select_related, \
-             patch('users.views.LeaderboardSerializer') as mock_serializer:
+        with patch('users.views.UserProfile.objects.select_related', autospec=True) as mock_select_related, \
+             patch('users.views.LeaderboardSerializer', autospec=True) as mock_serializer:
             mock_profiles = MagicMock()
             mock_profiles.annotate.return_value = mock_profiles
             mock_profiles.order_by.return_value = mock_profiles
