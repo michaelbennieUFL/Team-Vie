@@ -4,7 +4,7 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase, APIRequestFactory, force_authenticate
 from unittest.mock import MagicMock, patch
-from .views import leaderboard_view
+from .views import leaderboard_view, _generate_leaderboard_cache_key
 
 
 class MotivationQuoteTests(APITestCase):
@@ -57,3 +57,13 @@ class LeaderboardCacheTests(APITestCase):
         self.assertEqual(response_two.status_code, status.HTTP_200_OK)
         self.assertEqual(response_one.data, response_two.data)
         self.assertEqual(mock_select_related.call_count, 1)
+
+    def test_cache_key_changes_with_filters(self):
+        key_without_filters = _generate_leaderboard_cache_key(None, None)
+        key_with_region = _generate_leaderboard_cache_key('NA', None)
+        key_with_server = _generate_leaderboard_cache_key(None, '1')
+        key_with_both = _generate_leaderboard_cache_key('NA', '1')
+
+        self.assertNotEqual(key_without_filters, key_with_region)
+        self.assertNotEqual(key_without_filters, key_with_server)
+        self.assertNotEqual(key_with_region, key_with_both)
