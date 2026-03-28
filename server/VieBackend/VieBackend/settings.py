@@ -149,7 +149,8 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Cache settings
 # Use local-memory cache for development so caching works out of the box when
-# running scripts like ./start.sh. In multi-process/production deployments,
+# running scripts like ./start.sh. This backend is process-local, so cache
+# entries are not shared across multiple workers/processes. In production,
 # replace with a shared backend such as Redis or Memcached.
 CACHES = {
     'default': {

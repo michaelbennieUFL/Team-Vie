@@ -17,7 +17,7 @@ LEADERBOARD_CACHE_TIMEOUT_SECONDS = 60
 
 def _generate_leaderboard_cache_key(region, server_id):
     cache_payload = f"{region or ''}|{server_id or ''}"
-    return f"leaderboard:{blake2s(cache_payload.encode('utf-8'), digest_size=16).hexdigest()}"
+    return f"leaderboard:v1:{blake2s(cache_payload.encode('utf-8'), digest_size=16).hexdigest()}"
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
