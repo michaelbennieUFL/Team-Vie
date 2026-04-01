@@ -50,6 +50,9 @@ export interface Competition {
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED';
   challenger_score: number;
   opponent_score: number;
+  points_goal: number | null;
+  winner: number | null;
+  winner_username: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -297,9 +300,10 @@ class ApiService {
     return this.handleResponse<Competition[]>(response);
   }
 
-  async createCompetition(opponentId: number, serverId?: number) {
+  async createCompetition(opponentId: number, serverId?: number, pointsGoal?: number) {
     const body: Record<string, number> = { opponent: opponentId };
     if (serverId) body.server = serverId;
+    if (pointsGoal) body.points_goal = pointsGoal;
     const response = await fetch(`${API_BASE_URL}/competitions/`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -324,6 +328,31 @@ class ApiService {
       headers: this.getHeaders(),
       credentials: 'include',
       body: JSON.stringify({ task_id: taskId }),
+    });
+    return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+
+  async deleteCompetition(id: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${id}/delete_competition/`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthenticated();
+        throw new Error('Session expired. Please log in again.');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  }
+
+  async addCompetitionTask(competitionId: number, data: { title: string; description?: string; points_value?: number }) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${competitionId}/add_task/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
     });
     return this.handleResponse<{ message: string; competition: Competition }>(response);
   }

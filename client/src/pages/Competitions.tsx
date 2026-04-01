@@ -7,6 +7,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [showCreate, setShowCreate] = useState(false);
+    const [pointsGoal, setPointsGoal] = useState<number | ''>('');
     const [opponentQuery, setOpponentQuery] = useState('');
     const [opponentResults, setOpponentResults] = useState<UserSearchResult[]>([]);
     const [selectedOpponent, setSelectedOpponent] = useState<UserSearchResult | null>(null);
@@ -15,6 +16,8 @@ export default function Competitions() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
+    const [showAddTask, setShowAddTask] = useState(false);
+    const [newTask, setNewTask] = useState({ title: '', description: '', points_value: 10 });
     const { isDarkMode, toggleTheme } = useAppTheme();
 
     // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
@@ -160,7 +163,7 @@ export default function Competitions() {
             return;
         }
         try {
-            await apiService.createCompetition(selectedOpponent.id, selectedServerId);
+            await apiService.createCompetition(selectedOpponent.id, selectedServerId, pointsGoal ? Number(pointsGoal) : undefined);
             setShowCreate(false);
             setOpponentQuery('');
             setOpponentResults([]);
@@ -209,6 +212,36 @@ export default function Competitions() {
     };
 
     // ─── Render ───────────────────────────────────────────────────────────────
+    const handleDeleteCompetition = async (id: number) => {
+        if (!window.confirm('Are you sure you want to delete this competition?')) return;
+        try {
+            await apiService.deleteCompetition(id);
+            await loadCompetitions();
+        } catch (error) {
+            alert('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
+    const handleAddTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedCompetition) return;
+        if (!newTask.title.trim()) {
+            alert('Please enter a task title.');
+            return;
+        }
+        try {
+            const result = await apiService.addCompetitionTask(selectedCompetition.id, newTask);
+            setSelectedCompetition(result.competition);
+            setCompetitions(prev =>
+                prev.map(c => c.id === result.competition.id ? result.competition : c)
+            );
+            setNewTask({ title: '', description: '', points_value: 10 });
+            setShowAddTask(false);
+        } catch (error) {
+            alert('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
     return (
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
@@ -280,7 +313,20 @@ export default function Competitions() {
                             </div>
                         )}
                     </div>
-                    <button type="submit" disabled={!selectedOpponent}>Create</button>
+                    <div style={{ marginTop: '10px' }}>
+                        <label style={{ color: 'var(--app-text)', marginRight: '10px' }}>
+                            🎯 Points goal to win (optional):
+                        </label>
+                        <input
+                            type="number"
+                            min={1}
+                            placeholder="e.g. 100"
+                            value={pointsGoal}
+                            onChange={(e) => setPointsGoal(e.target.value ? Number(e.target.value) : '')}
+                            style={{ padding: '8px', width: '100px' }}
+                        />
+                    </div>
+                    <button type="submit" disabled={!selectedOpponent} style={{ marginTop: '12px' }}>Create</button>
                 </form>
             )}
 
@@ -329,7 +375,105 @@ export default function Competitions() {
                             </div>
                         </div>
 
+                        {/* Points Goal Progress */}
+                        {selectedCompetition.points_goal && (
+                            <div style={{
+                                background: 'var(--app-surface-muted)',
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                marginBottom: '16px',
+                                color: 'var(--app-text)'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                    <span>🎯 First to <strong>{selectedCompetition.points_goal} pts</strong> wins!</span>
+                                    <span style={{ fontSize: '13px', color: '#888' }}>
+                                        {selectedCompetition.challenger_username}: {selectedCompetition.challenger_score} &nbsp;|&nbsp; {selectedCompetition.opponent_username}: {selectedCompetition.opponent_score}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '12px', marginBottom: '3px' }}>{selectedCompetition.challenger_username}</div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '4px', height: '10px' }}>
+                                            <div style={{
+                                                width: `${Math.min(100, (selectedCompetition.challenger_score / selectedCompetition.points_goal) * 100)}%`,
+                                                background: '#4CAF50', borderRadius: '4px', height: '10px', transition: 'width 0.3s'
+                                            }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '12px', marginBottom: '3px' }}>{selectedCompetition.opponent_username}</div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '4px', height: '10px' }}>
+                                            <div style={{
+                                                width: `${Math.min(100, (selectedCompetition.opponent_score / selectedCompetition.points_goal) * 100)}%`,
+                                                background: '#2196F3', borderRadius: '4px', height: '10px', transition: 'width 0.3s'
+                                            }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <h3>Tasks</h3>
+
+                        {/* Add Task Button */}
+                        <div style={{ marginBottom: '12px' }}>
+                            <button onClick={() => setShowAddTask(!showAddTask)} style={{
+                                padding: '8px 16px',
+                                background: showAddTask ? '#888' : '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                            }}>
+                                {showAddTask ? 'Cancel' : '+ Add Task'}
+                            </button>
+                        </div>
+
+                        {/* Add Task Form */}
+                        {showAddTask && (
+                            <form onSubmit={handleAddTask} style={{
+                                background: 'var(--app-surface-muted)',
+                                padding: '15px',
+                                borderRadius: '8px',
+                                marginBottom: '15px',
+                                color: 'var(--app-text)'
+                            }}>
+                                <input
+                                    type="text"
+                                    placeholder="Task title *"
+                                    value={newTask.title}
+                                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                    style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Description (optional)"
+                                    value={newTask.description}
+                                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                                    style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
+                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <label>Points:</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={newTask.points_value}
+                                        onChange={(e) => setNewTask({ ...newTask, points_value: Number(e.target.value) })}
+                                        style={{ padding: '8px', width: '80px' }}
+                                    />
+                                    <button type="submit" style={{
+                                        padding: '8px 16px',
+                                        background: '#4CAF50',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                    }}>Add Task</button>
+                                </div>
+                            </form>
+                        )}
+
                         {selectedCompetition.tasks && selectedCompetition.tasks.length > 0 ? (
                             selectedCompetition.tasks.map(task => (
                                 <div key={task.id} style={{
@@ -380,7 +524,13 @@ export default function Competitions() {
                                 marginBottom: '10px',
                                 cursor: 'pointer'
                             }} onClick={() => setSelectedCompetition(competition)}>
-                                <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCompetition(competition.id); }} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
                                     <span>{competition.challenger_username}: {competition.challenger_score}</span>
                                     <span>{competition.opponent_username}: {competition.opponent_score}</span>
@@ -401,8 +551,14 @@ export default function Competitions() {
                                 borderRadius: '8px',
                                 marginBottom: '10px'
                             }}>
-                                <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
-                                <button onClick={() => handleAcceptCompetition(competition.id)}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
+                                <button onClick={() => handleAcceptCompetition(competition.id)} style={{ marginTop: '8px' }}>
                                     Accept Competition
                                 </button>
                             </div>
@@ -422,6 +578,25 @@ export default function Competitions() {
                                 marginBottom: '10px'
                             }}>
                                 <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
+                                {competition.winner_username && (
+                                    <div style={{
+                                        background: '#fff8e1',
+                                        border: '1px solid #FFD700',
+                                        borderRadius: '6px',
+                                        padding: '6px 12px',
+                                        margin: '8px 0',
+                                        fontWeight: 'bold',
+                                        color: '#b8860b'
+                                    }}>
+                                        🏆 Winner: {competition.winner_username}
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
                                     <span>{competition.challenger_username}: {competition.challenger_score}</span>
                                     <span>{competition.opponent_username}: {competition.opponent_score}</span>

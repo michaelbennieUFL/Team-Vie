@@ -2,9 +2,12 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db.models import Q
+from django.utils import timezone
 from .models import Task
 from .serializers import TaskSerializer
 from users.motivation import build_celebration_payload
+from competitions.models import Competition
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -29,25 +32,12 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error': 'Task is already completed'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Complete the task and award profile points
         task.complete_task()
-
-        # ── Update any active competition scores ──────────────────────────────
-        # Find all active competitions this user is part of that are on the
-        # same server as the completed task (or any server if task has no server)
-        from competitions.models import Competition
-        from django.db.models import Q
 
         active_competitions = Competition.objects.filter(
             Q(challenger=request.user) | Q(opponent=request.user),
             status='ACTIVE'
         )
-
-        # If the task belongs to a server, only update competitions on that server
-        if task.server:
-            active_competitions = active_competitions.filter(
-                Q(server=task.server) | Q(server__isnull=True)
-            )
 
         for competition in active_competitions:
             if request.user == competition.challenger:
@@ -56,26 +46,19 @@ class TaskViewSet(viewsets.ModelViewSet):
                 competition.opponent_score += task.points_value
             competition.save()
 
-            # Notify the opponent via WebSocket so their page updates live
-            try:
-                from channels.layers import get_channel_layer
-                from asgiref.sync import async_to_sync
-                channel_layer = get_channel_layer()
-                if channel_layer:
-                    async_to_sync(channel_layer.group_send)(
-                        f'competition_{competition.id}',
-                        {
-                            'type': 'competition_update',
-                            'message': {
-                                'type': 'task_update',
-                                'competition_id': competition.id,
-                            }
-                        }
-                    )
-            except Exception:
-                # WebSocket is optional — don't break task completion if Redis
-                # is not running
-                pass
+            # Check if points goal has been reached
+            if competition.points_goal:
+                winner = None
+                if competition.challenger_score >= competition.points_goal:
+                    winner = competition.challenger
+                elif competition.opponent_score >= competition.points_goal:
+                    winner = competition.opponent
+
+                if winner:
+                    competition.status = 'COMPLETED'
+                    competition.winner = winner
+                    competition.completed_at = timezone.now()
+                    competition.save()
 
         return Response({
             'message': 'Task completed successfully',
