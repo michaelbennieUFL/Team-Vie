@@ -10,12 +10,12 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
-    const { isDarkMode } = useAppTheme();
+    const { isDarkMode, toggleTheme } = useAppTheme();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        
+
         try {
             const response = await apiService.login(username, password);
             localStorage.setItem('user', JSON.stringify(response.user));
@@ -27,6 +27,18 @@ export default function Login() {
 
     return (
         <div className={`login-page ${isDarkMode ? 'login-page-dark' : ''}`}>
+            {/* Theme toggle — top-right corner, consistent with protected pages */}
+            <button
+                type="button"
+                className="theme-icon-btn login-theme-btn"
+                onClick={toggleTheme}
+                aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+                style={{ position: 'absolute', top: '16px', right: '20px' }}
+            >
+                {isDarkMode ? '☀' : '☾'}
+            </button>
+
             <Link className="ghost-btn login-back" to="/">
                 <i className="fa-solid fa-arrow-left" />
                 Back to main page

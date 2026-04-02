@@ -50,6 +50,9 @@ export interface Competition {
   status: 'PENDING' | 'ACTIVE' | 'COMPLETED';
   challenger_score: number;
   opponent_score: number;
+  points_goal: number | null;
+  winner: number | null;
+  winner_username: string | null;
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
@@ -93,6 +96,19 @@ export interface UserSearchResult {
   username: string;
 }
 
+// ─── Auth redirect helper ────────────────────────────────────────────────────
+// Called whenever the server returns 401 or 403 so the client is always
+// returned to the login page when a session expires or becomes invalid.
+function handleUnauthenticated() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('selectedServerId');
+  // Only redirect when we are not already on a public page
+  const publicPaths = ['/', '/login', '/register'];
+  if (!publicPaths.includes(window.location.pathname)) {
+    window.location.href = '/login';
+  }
+}
+
 class ApiService {
   private csrfTokenFetched = false;
 
@@ -113,13 +129,12 @@ class ApiService {
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
     };
-    
-    // Get CSRF token from cookie
+
     const csrfToken = this.getCookie('csrftoken');
     if (csrfToken) {
       headers['X-CSRFToken'] = csrfToken;
     }
-    
+
     return headers;
   }
 
@@ -133,7 +148,12 @@ class ApiService {
     return null;
   }
 
+  // FIX: Auth state inconsistency — redirect to login on 401/403
   private async handleResponse<T>(response: Response): Promise<T> {
+    if (response.status === 401 || response.status === 403) {
+      handleUnauthenticated();
+      throw new Error('Session expired. Please log in again.');
+    }
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Unknown error' }));
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
@@ -198,7 +218,7 @@ class ApiService {
 
   // Tasks
   async getTasks(serverId?: number) {
-    const url = serverId 
+    const url = serverId
       ? `${API_BASE_URL}/tasks/?server=${serverId}`
       : `${API_BASE_URL}/tasks/`;
     const response = await fetch(url, {
@@ -235,6 +255,10 @@ class ApiService {
       credentials: 'include',
     });
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthenticated();
+        throw new Error('Session expired. Please log in again.');
+      }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
   }
@@ -276,9 +300,10 @@ class ApiService {
     return this.handleResponse<Competition[]>(response);
   }
 
-  async createCompetition(opponentId: number, serverId?: number) {
+  async createCompetition(opponentId: number, serverId?: number, pointsGoal?: number) {
     const body: Record<string, number> = { opponent: opponentId };
     if (serverId) body.server = serverId;
+    if (pointsGoal) body.points_goal = pointsGoal;
     const response = await fetch(`${API_BASE_URL}/competitions/`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -303,6 +328,31 @@ class ApiService {
       headers: this.getHeaders(),
       credentials: 'include',
       body: JSON.stringify({ task_id: taskId }),
+    });
+    return this.handleResponse<{ message: string; competition: Competition }>(response);
+  }
+
+  async deleteCompetition(id: number) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${id}/delete_competition/`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        handleUnauthenticated();
+        throw new Error('Session expired. Please log in again.');
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+  }
+
+  async addCompetitionTask(competitionId: number, data: { title: string; description?: string; points_value?: number }) {
+    const response = await fetch(`${API_BASE_URL}/competitions/${competitionId}/add_task/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(data),
     });
     return this.handleResponse<{ message: string; competition: Competition }>(response);
   }

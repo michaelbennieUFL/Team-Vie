@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
 import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
@@ -7,6 +7,7 @@ import { useAppTheme } from '../hooks/useAppTheme';
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [showCreate, setShowCreate] = useState(false);
+    const [pointsGoal, setPointsGoal] = useState<number | ''>('');
     const [opponentQuery, setOpponentQuery] = useState('');
     const [opponentResults, setOpponentResults] = useState<UserSearchResult[]>([]);
     const [selectedOpponent, setSelectedOpponent] = useState<UserSearchResult | null>(null);
@@ -15,75 +16,131 @@ export default function Competitions() {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
+    const [showAddTask, setShowAddTask] = useState(false);
+    const [newTask, setNewTask] = useState({ title: '', description: '', points_value: 10 });
     const { isDarkMode, toggleTheme } = useAppTheme();
 
-    const loadCompetitions = async () => {
+    // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
+    // Keeping a ref to the latest selectedServerId ensures the WebSocket
+    // onmessage handler always re-fetches with the correct server filter,
+    // even though the handler is created only once.
+    const selectedServerIdRef = useRef(selectedServerId);
+    const selectedCompetitionRef = useRef(selectedCompetition);
+    useEffect(() => { selectedServerIdRef.current = selectedServerId; }, [selectedServerId]);
+    useEffect(() => { selectedCompetitionRef.current = selectedCompetition; }, [selectedCompetition]);
+
+    // ─── Load competitions ─────────────────────────────────────────────────────
+    // useCallback so we can safely put it in the WS ref below without
+    // recreating the WebSocket on every render.
+    const loadCompetitions = useCallback(async (serverId?: number) => {
         try {
-            const data = await apiService.getCompetitions(selectedServerId);
+            // Use the passed serverId or fall back to the latest ref value
+            const sid = serverId !== undefined ? serverId : selectedServerIdRef.current;
+            const data = await apiService.getCompetitions(sid);
             setCompetitions(data);
-            if (selectedCompetition) {
-                const updated = data.find(c => c.id === selectedCompetition.id);
+
+            // Keep the open competition detail in sync with fresh server data
+            const current = selectedCompetitionRef.current;
+            if (current) {
+                const updated = data.find(c => c.id === current.id);
                 if (updated) setSelectedCompetition(updated);
             }
         } catch (error) {
             console.error('Failed to load competitions:', error);
         }
-    };
+    }, []); // no deps — relies on refs for fresh values
 
-    const connectWebSocket = (competitionId: number) => {
-        if (ws) ws.close();
-        
+    // ─── WebSocket ─────────────────────────────────────────────────────────────
+    const connectWebSocket = useCallback((competitionId: number) => {
+        // Close any existing socket before opening a new one
+        setWs(prev => {
+            if (prev) prev.close();
+            return null;
+        });
+
         const websocket = new WebSocket(`ws://localhost:8000/ws/competition/${competitionId}/`);
-        
+
         websocket.onopen = () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected for competition', competitionId);
         };
-        
+
         websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.type === 'task_update') {
-                loadCompetitions();
+            try {
+                const msg = JSON.parse(event.data);
+                // FIX: re-fetch the full competition state from the server so
+                // both players' scores are always accurate.  The old code called
+                // loadCompetitions() captured in an earlier closure which still
+                // held a stale selectedServerId, so the re-fetch sometimes used
+                // the wrong server filter or used an old function reference.
+                if (msg.type === 'task_update') {
+                    loadCompetitions(); // always uses ref-based fresh values
+                }
+            } catch (err) {
+                console.error('WebSocket message parse error:', err);
             }
         };
-        
+
         websocket.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
-        
-        setWs(websocket);
-    };
 
-    const loadUserAndCompetitions = async () => {
-        try {
-            const user = await apiService.getCurrentUser();
-            setCurrentUser(user);
-            const serversData = await apiService.getServers();
-            setServers(serversData);
-            const saved = localStorage.getItem('selectedServerId');
-            if (saved) setSelectedServerId(Number(saved));
-            await loadCompetitions();
-        } catch (error) {
-            console.error('Failed to load user:', error);
-        }
-    };
-
-    useEffect(() => {
-        loadUserAndCompetitions();
-        return () => {
-            if (ws) ws.close();
+        websocket.onclose = () => {
+            console.log('WebSocket closed for competition', competitionId);
         };
-    }, []);
 
+        setWs(websocket);
+    }, [loadCompetitions]);
+
+    // ─── Bootstrap ────────────────────────────────────────────────────────────
     useEffect(() => {
-        loadCompetitions();
-    }, [selectedServerId]);
+        const init = async () => {
+            try {
+                const [user, serversData] = await Promise.all([
+                    apiService.getCurrentUser(),
+                    apiService.getServers(),
+                ]);
+                setCurrentUser(user);
+                setServers(serversData);
 
+                const saved = localStorage.getItem('selectedServerId');
+                const sid = saved ? Number(saved) : undefined;
+                if (sid) setSelectedServerId(sid);
+
+                await loadCompetitions(sid);
+            } catch (error) {
+                console.error('Failed to initialise competitions page:', error);
+            }
+        };
+        init();
+
+        // Cleanup: close the socket when leaving the page
+        return () => {
+            setWs(prev => {
+                if (prev) prev.close();
+                return null;
+            });
+        };
+    }, [loadCompetitions]);
+
+    // Reload when server filter changes
+    useEffect(() => {
+        loadCompetitions(selectedServerId);
+    }, [selectedServerId, loadCompetitions]);
+
+    // Connect/reconnect WebSocket when the active competition changes
     useEffect(() => {
         if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
             connectWebSocket(selectedCompetition.id);
+        } else {
+            // Close any open socket when there is no active competition selected
+            setWs(prev => {
+                if (prev) prev.close();
+                return null;
+            });
         }
-    }, [selectedCompetition]);
+    }, [selectedCompetition?.id, selectedCompetition?.status, connectWebSocket]);
 
+    // ─── Handlers ─────────────────────────────────────────────────────────────
     const handleSearchOpponent = async (query: string) => {
         setOpponentQuery(query);
         setSelectedOpponent(null);
@@ -106,7 +163,7 @@ export default function Competitions() {
             return;
         }
         try {
-            await apiService.createCompetition(selectedOpponent.id, selectedServerId);
+            await apiService.createCompetition(selectedOpponent.id, selectedServerId, pointsGoal ? Number(pointsGoal) : undefined);
             setShowCreate(false);
             setOpponentQuery('');
             setOpponentResults([]);
@@ -130,25 +187,58 @@ export default function Competitions() {
 
     const handleCompleteTask = async (taskId: number) => {
         if (!selectedCompetition) return;
-        
+
         try {
-            await apiService.completeCompetitionTask(selectedCompetition.id, taskId);
-            
-            // Send WebSocket update
+            // FIX: use the competition returned by the API to immediately update
+            // scores in the UI — no need to wait for the WebSocket round-trip.
+            const result = await apiService.completeCompetitionTask(selectedCompetition.id, taskId);
+
+            // Update state directly from the authoritative API response
+            setSelectedCompetition(result.competition);
+            setCompetitions(prev =>
+                prev.map(c => c.id === result.competition.id ? result.competition : c)
+            );
+
+            // Also notify the opponent's client via WebSocket
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                     type: 'task_completed',
                     task_id: taskId,
-                    user: 'current_user',
-                    challenger_score: selectedCompetition.challenger_score,
-                    opponent_score: selectedCompetition.opponent_score
                 }));
             }
-            
-            await loadCompetitions();
-            alert('Task completed!');
         } catch (error) {
             alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
+    // ─── Render ───────────────────────────────────────────────────────────────
+    const handleDeleteCompetition = async (id: number) => {
+        if (!window.confirm('Are you sure you want to delete this competition?')) return;
+        try {
+            await apiService.deleteCompetition(id);
+            await loadCompetitions();
+        } catch (error) {
+            alert('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        }
+    };
+
+    const handleAddTask = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedCompetition) return;
+        if (!newTask.title.trim()) {
+            alert('Please enter a task title.');
+            return;
+        }
+        try {
+            const result = await apiService.addCompetitionTask(selectedCompetition.id, newTask);
+            setSelectedCompetition(result.competition);
+            setCompetitions(prev =>
+                prev.map(c => c.id === result.competition.id ? result.competition : c)
+            );
+            setNewTask({ title: '', description: '', points_value: 10 });
+            setShowAddTask(false);
+        } catch (error) {
+            alert('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -156,7 +246,7 @@ export default function Competitions() {
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1>⚔️ Competitions</h1>
+                <h1><i className="fa-solid fa-swords" style={{ marginRight: '10px' }} />Competitions</h1>
                 <div>
                     <button onClick={() => setShowCreate(!showCreate)} style={{ marginRight: '10px' }}>
                         {showCreate ? 'Cancel' : 'New Competition'}
@@ -212,7 +302,7 @@ export default function Competitions() {
                                         style={{
                                             padding: '8px 12px',
                                             cursor: 'pointer',
-                                            borderBottom: '1px solid #f0f0f0'
+                                            borderBottom: '1px solid var(--app-border)'
                                         }}
                                         onMouseEnter={(e) => e.currentTarget.style.background = 'var(--app-surface-muted)'}
                                         onMouseLeave={(e) => e.currentTarget.style.background = 'var(--app-surface)'}
@@ -223,7 +313,20 @@ export default function Competitions() {
                             </div>
                         )}
                     </div>
-                    <button type="submit" disabled={!selectedOpponent}>Create</button>
+                    <div style={{ marginTop: '10px' }}>
+                        <label style={{ color: 'var(--app-text)', marginRight: '10px' }}>
+                            🎯 Points goal to win (optional):
+                        </label>
+                        <input
+                            type="number"
+                            min={1}
+                            placeholder="e.g. 100"
+                            value={pointsGoal}
+                            onChange={(e) => setPointsGoal(e.target.value ? Number(e.target.value) : '')}
+                            style={{ padding: '8px', width: '100px' }}
+                        />
+                    </div>
+                    <button type="submit" disabled={!selectedOpponent} style={{ marginTop: '12px' }}>Create</button>
                 </form>
             )}
 
@@ -245,17 +348,17 @@ export default function Competitions() {
                     <button onClick={() => setSelectedCompetition(null)} style={{ marginBottom: '10px' }}>
                         ← Back to List
                     </button>
-                    <div className="page-section" style={{ 
-                        background: 'var(--app-surface)', 
+                    <div className="page-section" style={{
+                        background: 'var(--app-surface)',
                         border: '2px solid #4CAF50',
-                        padding: '20px', 
+                        padding: '20px',
                         borderRadius: '8px',
                         color: 'var(--app-text)'
                     }}>
                         <h2>{selectedCompetition.challenger_username} vs {selectedCompetition.opponent_username}</h2>
-                        <div style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-around', 
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-around',
                             margin: '20px 0',
                             padding: '15px',
                             background: 'var(--app-surface-muted)',
@@ -271,8 +374,106 @@ export default function Competitions() {
                                 <p style={{ fontSize: '32px', fontWeight: 'bold' }}>{selectedCompetition.opponent_score}</p>
                             </div>
                         </div>
-                        
+
+                        {/* Points Goal Progress */}
+                        {selectedCompetition.points_goal && (
+                            <div style={{
+                                background: 'var(--app-surface-muted)',
+                                padding: '12px 16px',
+                                borderRadius: '8px',
+                                marginBottom: '16px',
+                                color: 'var(--app-text)'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                    <span><i className="fa-solid fa-bullseye" style={{ marginRight: '6px', color: '#e74c3c' }} />First to <strong>{selectedCompetition.points_goal} pts</strong> wins!</span>
+                                    <span style={{ fontSize: '13px', color: '#888' }}>
+                                        {selectedCompetition.challenger_username}: {selectedCompetition.challenger_score} &nbsp;|&nbsp; {selectedCompetition.opponent_username}: {selectedCompetition.opponent_score}
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '12px', marginBottom: '3px' }}>{selectedCompetition.challenger_username}</div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '4px', height: '10px' }}>
+                                            <div style={{
+                                                width: `${Math.min(100, (selectedCompetition.challenger_score / selectedCompetition.points_goal) * 100)}%`,
+                                                background: '#4CAF50', borderRadius: '4px', height: '10px', transition: 'width 0.3s'
+                                            }} />
+                                        </div>
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '12px', marginBottom: '3px' }}>{selectedCompetition.opponent_username}</div>
+                                        <div style={{ background: '#e0e0e0', borderRadius: '4px', height: '10px' }}>
+                                            <div style={{
+                                                width: `${Math.min(100, (selectedCompetition.opponent_score / selectedCompetition.points_goal) * 100)}%`,
+                                                background: '#2196F3', borderRadius: '4px', height: '10px', transition: 'width 0.3s'
+                                            }} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <h3>Tasks</h3>
+
+                        {/* Add Task Button */}
+                        <div style={{ marginBottom: '12px' }}>
+                            <button onClick={() => setShowAddTask(!showAddTask)} style={{
+                                padding: '8px 16px',
+                                background: showAddTask ? '#888' : '#4CAF50',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer'
+                            }}>
+                                {showAddTask ? 'Cancel' : '+ Add Task'}
+                            </button>
+                        </div>
+
+                        {/* Add Task Form */}
+                        {showAddTask && (
+                            <form onSubmit={handleAddTask} style={{
+                                background: 'var(--app-surface-muted)',
+                                padding: '15px',
+                                borderRadius: '8px',
+                                marginBottom: '15px',
+                                color: 'var(--app-text)'
+                            }}>
+                                <input
+                                    type="text"
+                                    placeholder="Task title *"
+                                    value={newTask.title}
+                                    onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                                    style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
+                                    required
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Description (optional)"
+                                    value={newTask.description}
+                                    onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
+                                    style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
+                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <label>Points:</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={newTask.points_value}
+                                        onChange={(e) => setNewTask({ ...newTask, points_value: Number(e.target.value) })}
+                                        style={{ padding: '8px', width: '80px' }}
+                                    />
+                                    <button type="submit" style={{
+                                        padding: '8px 16px',
+                                        background: '#4CAF50',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                    }}>Add Task</button>
+                                </div>
+                            </form>
+                        )}
+
                         {selectedCompetition.tasks && selectedCompetition.tasks.length > 0 ? (
                             selectedCompetition.tasks.map(task => (
                                 <div key={task.id} style={{
@@ -323,7 +524,13 @@ export default function Competitions() {
                                 marginBottom: '10px',
                                 cursor: 'pointer'
                             }} onClick={() => setSelectedCompetition(competition)}>
-                                <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCompetition(competition.id); }} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
                                     <span>{competition.challenger_username}: {competition.challenger_score}</span>
                                     <span>{competition.opponent_username}: {competition.opponent_score}</span>
@@ -344,8 +551,14 @@ export default function Competitions() {
                                 borderRadius: '8px',
                                 marginBottom: '10px'
                             }}>
-                                <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
-                                <button onClick={() => handleAcceptCompetition(competition.id)}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
+                                <button onClick={() => handleAcceptCompetition(competition.id)} style={{ marginTop: '8px' }}>
                                     Accept Competition
                                 </button>
                             </div>
@@ -365,6 +578,25 @@ export default function Competitions() {
                                 marginBottom: '10px'
                             }}>
                                 <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                        background: '#ff4444', color: 'white', border: 'none',
+                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                    }}>Delete</button>
+                                </div>
+                                {competition.winner_username && (
+                                    <div style={{
+                                        background: '#fff8e1',
+                                        border: '1px solid #FFD700',
+                                        borderRadius: '6px',
+                                        padding: '6px 12px',
+                                        margin: '8px 0',
+                                        fontWeight: 'bold',
+                                        color: '#b8860b'
+                                    }}>
+                                        <i className="fa-solid fa-trophy" style={{ marginRight: '6px', color: '#FFD700' }} />Winner: {competition.winner_username}
+                                    </div>
+                                )}
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
                                     <span>{competition.challenger_username}: {competition.challenger_score}</span>
                                     <span>{competition.opponent_username}: {competition.opponent_score}</span>
