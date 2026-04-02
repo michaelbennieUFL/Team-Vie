@@ -246,7 +246,7 @@ export default function Competitions() {
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1>⚔️ Competitions</h1>
+                <h1><i className="fa-solid fa-swords" style={{ marginRight: '10px' }} />Competitions</h1>
                 <div>
                     <button onClick={() => setShowCreate(!showCreate)} style={{ marginRight: '10px' }}>
                         {showCreate ? 'Cancel' : 'New Competition'}
@@ -385,7 +385,7 @@ export default function Competitions() {
                                 color: 'var(--app-text)'
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                                    <span>🎯 First to <strong>{selectedCompetition.points_goal} pts</strong> wins!</span>
+                                    <span><i className="fa-solid fa-bullseye" style={{ marginRight: '6px', color: '#e74c3c' }} />First to <strong>{selectedCompetition.points_goal} pts</strong> wins!</span>
                                     <span style={{ fontSize: '13px', color: '#888' }}>
                                         {selectedCompetition.challenger_username}: {selectedCompetition.challenger_score} &nbsp;|&nbsp; {selectedCompetition.opponent_username}: {selectedCompetition.opponent_score}
                                     </span>
@@ -594,7 +594,7 @@ export default function Competitions() {
                                         fontWeight: 'bold',
                                         color: '#b8860b'
                                     }}>
-                                        🏆 Winner: {competition.winner_username}
+                                        <i className="fa-solid fa-trophy" style={{ marginRight: '6px', color: '#FFD700' }} />Winner: {competition.winner_username}
                                     </div>
                                 )}
                                 <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>

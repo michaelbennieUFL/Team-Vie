@@ -303,21 +303,15 @@ export default function Dashboard() {
 
       <section className="dashboard-topbar">
         <div className="brand">
-          <span
-            className="brand-mark"
-            onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' })}
-          >
-            V
-          </span>
           <div>
-            <p className="brand-name">Good afternoon, {user?.first_name || user?.username || 'Camila'}</p>
+            <p className="brand-name">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.first_name || user?.username || 'there'}</p>
             <p className="brand-tag">Ready to stack points and keep the streak alive.</p>
           </div>
         </div>
         <div className="header-actions">
           <div style={{ position: 'relative' }}>
             <button className="secondary-btn" onClick={() => setShowServerDropdown((v) => !v)}>
-              📂 {selectedServer?.name || 'Select Server'}
+              <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{selectedServer?.name || 'Select Server'}
             </button>
             {showServerDropdown && (
               <div className="leaderboard-card" style={{ position: 'absolute', top: '110%', left: 0, minWidth: 260, zIndex: 30 }}>
@@ -336,7 +330,7 @@ export default function Dashboard() {
                   + Create Server
                 </button>
                 <button className="ghost-btn full-width" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
-                  🔍 Join Server
+                  <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }} /> Join Server
                 </button>
               </div>
             )}

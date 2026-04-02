@@ -220,7 +220,7 @@ export default function Overview() {
             {Object.entries(tasksByServer).map(([serverName, serverTasks]) => (
                 <div key={serverName} className="page-section" style={{ marginBottom: '30px' }}>
                     <h2 style={{ borderBottom: '2px solid #4CAF50', paddingBottom: '8px' }}>
-                        📂 {serverName}
+                        <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{serverName}
                         <span style={{ fontSize: '14px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
                             ({serverTasks.filter(t => !t.is_completed).length} pending)
                         </span>
