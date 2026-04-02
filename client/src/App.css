@@ -197,6 +197,32 @@ button {
   border-color: var(--border);
 }
 
+.overview-action-btn {
+  border-radius: 999px;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.overview-action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.overview-action-btn-success {
+  background: rgba(76, 175, 80, 0.22);
+  color: #1f5f26;
+}
+
+.overview-action-btn-danger {
+  background: rgba(244, 67, 54, 0.2);
+  color: #8f1f17;
+}
+
 .full-width {
   width: 100%;
   justify-content: center;
@@ -822,10 +848,102 @@ section p {
   gap: 24px;
 }
 
-.celebration-popup h2,
-.motivation-card h2 {
+.dashboard-context {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.welcome-panel,
+.workspace-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.context-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(250px, 0.95fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.dashboard-secondary {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.65fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-work-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.dashboard-competition-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+.welcome-panel {
+  height: 100%;
+  align-content: start;
+  max-width: 360px;
+  background:
+    radial-gradient(circle at top left, rgba(32, 214, 181, 0.18), transparent 38%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(240, 248, 247, 0.92)),
+    #fff;
+}
+
+.welcome-panel h2 {
+  display: grid;
+  gap: 4px;
+  font-size: clamp(18px, 1.5vw, 22px);
+}
+
+.welcome-greeting,
+.welcome-name {
+  display: block;
+}
+
+.welcome-name {
+  font-size: 1.08em;
+}
+
+.workspace-actions,
+.tasks-panel-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.workspace-control-row {
+  display: grid;
+  gap: 14px;
+}
+
+.workspace-menu-btn {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.workspace-dropdown {
+  display: grid;
+  gap: 6px;
+  width: min(280px, calc(100vw - 48px));
+}
+
+.panel-head h2,
+.motivation-card h2,
+.leaderboard-card h2,
+.welcome-panel h2,
+.celebration-popup h2 {
   margin: 0;
-  font-size: clamp(24px, 2.2vw, 34px);
+  font-size: clamp(20px, 1.8vw, 26px);
+  line-height: 1.15;
 }
 
 .celebration-overlay {
@@ -1013,6 +1131,9 @@ section p {
 .tasks-list {
   display: grid;
   gap: 14px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
 }
 
 .task-card {
@@ -1125,9 +1246,46 @@ section p {
   color: #0b6d5f;
 }
 
-.insight-panel {
+.tasks-panel,
+.dashboard-secondary {
   display: grid;
   gap: 18px;
+}
+
+.tasks-panel {
+  height: clamp(560px, 68vh, 760px);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.work-leaderboard-card {
+  height: clamp(560px, 68vh, 760px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.work-leaderboard-card .leaderboard-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.challenge-panel,
+.workspace-panel {
+  height: clamp(320px, 40vh, 420px);
+  overflow: hidden;
+}
+
+.challenge-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.challenge-cards {
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
 }
 
 .stats-grid {
@@ -1135,8 +1293,19 @@ section p {
   gap: 16px;
 }
 
+.context-stats {
+  grid-template-columns: 1fr;
+  align-self: stretch;
+}
+
+.context-stats .stat-card {
+  height: 100%;
+}
+
 .stat-card {
-  background: rgba(11, 13, 15, 0.03);
+  background: #fff;
+  border: 1px solid rgba(15, 18, 22, 0.08);
+  box-shadow: 0 16px 36px rgba(11, 13, 15, 0.05);
   border-radius: 18px;
   padding: 18px;
 }
@@ -1241,10 +1410,6 @@ section p {
   flex-shrink: 0;
 }
 
-.challenge-panel {
-  grid-column: 1 / -1;
-}
-
 .challenge-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1260,46 +1425,69 @@ section p {
 .challenge-card {
   background: #fff;
   border-radius: 18px;
-  padding: 18px;
+  padding: 14px 16px;
   border: 1px solid rgba(15, 18, 22, 0.08);
-  display: grid;
-  gap: 14px;
+  display: block;
 }
 
-.challenge-head {
+.challenge-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-.challenge-head h3 {
+.challenge-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.challenge-summary h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .status-pill {
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 600;
   background: rgba(11, 13, 15, 0.08);
 }
 
+.status-pill.status-active {
+  background: rgba(15, 127, 232, 0.14);
+  color: #0f4a8c;
+}
+
+.status-pill.status-completed {
+  background: rgba(32, 214, 181, 0.18);
+  color: #0b6d5f;
+}
+
 .challenge-players {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .challenge-players p {
-  margin: 0 0 6px;
+  margin: 0 0 2px;
   color: var(--muted);
   font-size: 12px;
 }
 
 .challenge-players strong {
-  font-size: 16px;
+  font-size: 14px;
+}
+
+.workspace-panel {
+  display: grid;
+  align-content: start;
 }
 
 .overlay {
@@ -1481,7 +1669,7 @@ section p {
   }
 
   .dash-main {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.9fr);
+    grid-template-columns: 1fr;
   }
 
   .stats-grid {
@@ -1515,6 +1703,28 @@ section p {
   .dash-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .dashboard-context,
+  .context-side,
+  .dashboard-work-row,
+  .dashboard-secondary,
+  .dashboard-competition-row {
+    grid-template-columns: 1fr;
+  }
+
+  .tasks-panel {
+    height: 520px;
+  }
+
+  .work-leaderboard-card,
+  .challenge-panel,
+  .workspace-panel {
+    height: auto;
+  }
+
+  .welcome-panel {
+    max-width: none;
   }
 
   .dashboard-topbar,
@@ -1676,12 +1886,21 @@ section p {
 }
 
 .page-section {
-  margin-top: 0;
+  margin-top: 0px;
   margin-bottom: 16px;
+  width: min(100%, 1400px);
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 .page-section-tight {
   margin-bottom: 12px;
+}
+
+.vie-app-page .protected-nav + .page-section,
+.vie-app-page .protected-nav + .page-section-tight {
+  margin-top: 60px;
 }
 
 .vie-app-page.theme-dark {
@@ -1722,7 +1941,8 @@ section p {
   letter-spacing: -0.02em;
 }
 
-.vie-app-page > div {
+.vie-app-page .page-section,
+.vie-app-page .page-section-tight {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--radius-md);
@@ -1744,6 +1964,18 @@ section p {
 .vie-app-page button:hover {
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(11, 13, 15, 0.12);
+}
+
+.vie-app-page button.overview-action-btn-success {
+  background: rgba(76, 175, 80, 0.22);
+  color: #1f5f26;
+  border-color: rgba(76, 175, 80, 0.28);
+}
+
+.vie-app-page button.overview-action-btn-danger {
+  background: rgba(244, 67, 54, 0.2);
+  color: #8f1f17;
+  border-color: rgba(244, 67, 54, 0.26);
 }
 
 .vie-app-page input,

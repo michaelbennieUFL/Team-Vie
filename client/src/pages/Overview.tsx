@@ -105,9 +105,9 @@ export default function Overview() {
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1>📋 Overview — All Tasks</h1>
+                <h1>📋 All Tasks</h1>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setShowAddTask(!showAddTask)}>
+                    <button className="primary-btn" onClick={() => setShowAddTask(!showAddTask)}>
                         {showAddTask ? 'Cancel' : '+ Add Task'}
                     </button>
                 </div>
@@ -249,15 +249,15 @@ export default function Overview() {
                                 <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                                     {!task.is_completed && (
                                         <button
+                                            className="overview-action-btn overview-action-btn-success"
                                             onClick={() => handleCompleteTask(task.id)}
-                                            style={{ background: '#4CAF50', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
                                         >
                                             Complete
                                         </button>
                                     )}
                                     <button
+                                        className="overview-action-btn overview-action-btn-danger"
                                         onClick={() => handleDeleteTask(task.id)}
-                                        style={{ background: '#f44336', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
                                     >
                                         Delete
                                     </button>

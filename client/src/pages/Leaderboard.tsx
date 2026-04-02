@@ -66,36 +66,38 @@ export default function Leaderboard() {
                 />
             </div>
 
-            <table className="page-section page-section-tight" style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--app-text)' }}>
-                <thead>
-                    <tr style={{ background: 'var(--app-surface-muted)' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Rank</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Username</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Points</th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Streak <i className="fa-solid fa-fire" style={{ color: '#FF6B35' }} /></th>
-                        <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Region</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {leaderboard.map((entry, index) => (
-                        <tr key={index} style={{ 
-                            background: index % 2 === 0 ? 'var(--app-surface)' : 'var(--app-surface-subtle)',
-                            borderBottom: '1px solid var(--app-border)'
-                        }}>
-                            <td style={{ padding: '12px' }}>
-                                {entry.rank === 1 && '🥇'}
-                                {entry.rank === 2 && '🥈'}
-                                {entry.rank === 3 && '🥉'}
-                                {entry.rank > 3 && entry.rank}
-                            </td>
-                            <td style={{ padding: '12px', fontWeight: 'bold' }}>{entry.username}</td>
-                            <td style={{ padding: '12px' }}>{entry.points}</td>
-                            <td style={{ padding: '12px' }}>{entry.current_streak} days</td>
-                            <td style={{ padding: '12px' }}>{entry.region || 'N/A'}</td>
+            <div className="page-section page-section-tight">
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: 'var(--app-text)' }}>
+                    <thead>
+                        <tr style={{ background: 'var(--app-surface-muted)' }}>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Rank</th>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Username</th>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Points</th>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Streak <i className="fa-solid fa-fire" style={{ color: '#FF6B35' }} /></th>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Region</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {leaderboard.map((entry, index) => (
+                            <tr key={index} style={{
+                                background: index % 2 === 0 ? 'var(--app-surface)' : 'var(--app-surface-subtle)',
+                                borderBottom: '1px solid var(--app-border)'
+                            }}>
+                                <td style={{ padding: '12px' }}>
+                                    {entry.rank === 1 && '🥇'}
+                                    {entry.rank === 2 && '🥈'}
+                                    {entry.rank === 3 && '🥉'}
+                                    {entry.rank > 3 && entry.rank}
+                                </td>
+                                <td style={{ padding: '12px', fontWeight: 'bold' }}>{entry.username}</td>
+                                <td style={{ padding: '12px' }}>{entry.points}</td>
+                                <td style={{ padding: '12px' }}>{entry.current_streak} days</td>
+                                <td style={{ padding: '12px' }}>{entry.region || 'N/A'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
             {leaderboard.length === 0 && (
                 <p style={{ textAlign: 'center', marginTop: '20px', color: 'var(--app-text-muted)' }}>
