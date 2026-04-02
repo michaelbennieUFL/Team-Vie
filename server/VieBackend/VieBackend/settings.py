@@ -147,6 +147,18 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+# Cache settings
+# Use local-memory cache for development so caching works out of the box when
+# running scripts like ./start.sh. This backend is process-local, so cache
+# entries are not shared across multiple workers/processes. In production,
+# replace with a shared backend such as Redis or Memcached.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'team-vie-local-cache',
+    }
+}
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [

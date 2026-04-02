@@ -2,14 +2,22 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from hashlib import blake2s
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import F, Window
 from django.db.models.functions import Rank
+from django.core.cache import cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from .models import UserProfile
 from .serializers import UserSerializer, RegisterSerializer, LeaderboardSerializer
 from .motivation import get_random_quote
+
+LEADERBOARD_CACHE_TIMEOUT_SECONDS = 60
+
+def _generate_leaderboard_cache_key(region, server_id):
+    cache_payload = f"{region or ''}|{server_id or ''}"
+    return f"leaderboard:v1:{blake2s(cache_payload.encode('utf-8'), digest_size=16).hexdigest()}"
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -80,6 +88,10 @@ def search_users_view(request):
 def leaderboard_view(request):
     region = request.query_params.get('region', None)
     server_id = request.query_params.get('server', None)
+    cache_key = _generate_leaderboard_cache_key(region, server_id)
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return Response(cached_data)
     
     profiles = UserProfile.objects.select_related('user')
     if region:
@@ -97,4 +109,5 @@ def leaderboard_view(request):
     ).order_by('-points')[:50]
     
     serializer = LeaderboardSerializer(profiles, many=True)
+    cache.set(cache_key, serializer.data, LEADERBOARD_CACHE_TIMEOUT_SECONDS)
     return Response(serializer.data)
