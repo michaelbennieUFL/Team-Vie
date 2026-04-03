@@ -7,7 +7,7 @@ from rest_framework.test import APITestCase
 
 from competitions.models import Competition
 from .models import Task
-from users.models import WeeklyProgress
+from users.models import DailyTaskProgress, WeeklyProgress
 
 
 class TaskScoringTests(APITestCase):
@@ -68,15 +68,7 @@ class TaskScoringTests(APITestCase):
         self.assertIn('3 minutes', response.data['error'])
 
     def test_daily_cap_reduces_points_for_repeated_low_priority_tasks(self):
-        for idx in range(8):
-            Task.objects.create(
-                user=self.user,
-                title=f'Low task {idx}',
-                priority='LOW',
-                points_value=5,
-                is_completed=True,
-                completed_at=timezone.now() - timedelta(minutes=10),
-            )
+        DailyTaskProgress.objects.create(user=self.user, day=timezone.now().date(), low_full_count=8)
 
         task = Task.objects.create(
             user=self.user,
@@ -92,6 +84,56 @@ class TaskScoringTests(APITestCase):
         weekly_progress = WeeklyProgress.objects.get(user=self.user)
         self.assertEqual(weekly_progress.competitive_points, 0)
         self.assertEqual(weekly_progress.personal_points, 2)
+        daily_progress = DailyTaskProgress.objects.get(user=self.user, day=timezone.now().date())
+        self.assertEqual(daily_progress.low_reduced_count, 1)
+
+    def test_daily_cap_reduces_points_for_fourth_high_priority_task(self):
+        DailyTaskProgress.objects.create(user=self.user, day=timezone.now().date(), high_full_count=3)
+
+        task = Task.objects.create(
+            user=self.user,
+            title='Fourth hard task',
+            priority='HIGH',
+        )
+        self._age_task(task)
+
+        response = self.client.post(f'/api/tasks/{task.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['points_earned'], 8)
+        self.assertTrue(response.data['celebration']['daily_limit_reached'])
+        self.assertIn('full-point limit', response.data['celebration']['limit_note'])
+
+    def test_deleting_completed_task_does_not_reset_daily_cap(self):
+        for idx in range(3):
+            task = Task.objects.create(
+                user=self.user,
+                title=f'Hard task {idx}',
+                priority='HIGH',
+            )
+            self._age_task(task)
+            response = self.client.post(f'/api/tasks/{task.id}/complete/')
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            self.assertEqual(response.data['points_earned'], 15)
+
+        completed_task = Task.objects.filter(user=self.user, priority='HIGH', is_completed=True).first()
+        self.assertIsNotNone(completed_task)
+        completed_task.delete()
+
+        next_task = Task.objects.create(
+            user=self.user,
+            title='Another hard task',
+            priority='HIGH',
+        )
+        self._age_task(next_task)
+
+        response = self.client.post(f'/api/tasks/{next_task.id}/complete/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['points_earned'], 8)
+        daily_progress = DailyTaskProgress.objects.get(user=self.user, day=timezone.now().date())
+        self.assertEqual(daily_progress.high_full_count, 3)
+        self.assertEqual(daily_progress.high_reduced_count, 1)
 
     def test_normal_task_completion_no_longer_updates_active_competitions(self):
         competition = Competition.objects.create(

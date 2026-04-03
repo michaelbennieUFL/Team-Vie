@@ -41,16 +41,11 @@ def is_completion_cooldown_satisfied(created_at, *, now=None) -> bool:
 
 
 def points_to_award_for_task(*, user, difficulty: str, now=None) -> tuple[int, str]:
-    from .models import Task
+    from users.progress import get_daily_completion_counts
 
     current_time = now or timezone.now()
     normalized = normalize_difficulty(difficulty)
-    completed_today = Task.objects.filter(
-        user=user,
-        is_completed=True,
-        priority=normalized,
-        completed_at__date=current_time.date(),
-    ).count()
+    completed_today = get_daily_completion_counts(user, now=current_time)[normalized]
 
     full_limit = DAILY_FULL_SCORE_LIMITS[normalized]
     base_points = DIFFICULTY_POINTS[normalized]

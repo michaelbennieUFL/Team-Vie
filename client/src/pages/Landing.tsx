@@ -88,23 +88,19 @@ export default function Landing() {
             <a href="#home" className="active">Home</a>
             <a href="#tour">Product</a>
             <a href="#features">Friends</a>
-            <a href="#access">Access</a>
           </nav>
           <div className="cinematic-actions">
             <Link className="secondary-btn liquid-glass nav-glass-btn" to="/login">
               Sign in
             </Link>
             <Link className="primary-btn liquid-glass nav-glass-btn" to="/register">
-              Start your streak
+              Sign up
             </Link>
           </div>
         </header>
 
         <main className="cinematic-main">
           <section className="cinematic-hero">
-            <div className="cinematic-eyebrow animate-fade-rise">
-              New: 1v1 challenges by shared tasks
-            </div>
             <h1 className="animate-fade-rise" style={{ fontFamily: "'Instrument Serif', serif" }}>
               Consistency wins.
               <br />
@@ -113,36 +109,23 @@ export default function Landing() {
             <p className="cinematic-subtitle animate-fade-rise-delay">
               Vie turns daily tasks into points, streaks, and friendly competition.
             </p>
-            <div className="cinematic-cta-row animate-fade-rise-delay-2">
-              <Link className="liquid-glass cinematic-hero-cta" to="/register">
-                Start your streak
-              </Link>
-              <Link className="liquid-glass cinematic-hero-cta subtle" to="/leaderboard">
-                View leaderboard
-              </Link>
-            </div>
 
             <div className="cinematic-metrics">
               <article className="liquid-glass metric-card">
                 <span className="metric-label">Consistency</span>
                 <strong>Daily work, visible momentum</strong>
-                <p>Turn ordinary tasks into a streak system that keeps the week moving.</p>
+                <p>Turn ordinary tasks into visible weekly momentum.</p>
               </article>
               <article className="liquid-glass metric-card">
                 <span className="metric-label">Competition</span>
                 <strong>Friendly rivalry with real targets</strong>
-                <p>Bring structure to accountability through clear goals instead of noisy score inflation.</p>
+                <p>Compete through clear goals, not noisy point inflation.</p>
               </article>
               <article className="liquid-glass metric-card">
                 <span className="metric-label">Fair play</span>
                 <strong>Built to stay honest</strong>
-                <p>Backend scoring and anti-farming rules keep public progress more trustworthy.</p>
+                <p>Backend scoring keeps public progress more trustworthy.</p>
               </article>
-            </div>
-
-            <div className="cinematic-access" id="access">
-              <p>Already in the arena?</p>
-              <Link to="/dashboard">Go to dashboard</Link>
             </div>
           </section>
         </main>
@@ -161,7 +144,7 @@ export default function Landing() {
                   <button
                     key={tab.id}
                     type="button"
-                    className={activeTab === tab.id ? 'tab active' : 'tab'}
+                    className={activeTab === tab.id ? 'tab liquid-glass active' : 'tab liquid-glass'}
                     onClick={() => setActiveTab(tab.id)}
                   >
                     {tab.label}
@@ -169,7 +152,7 @@ export default function Landing() {
                 ))}
               </div>
               <div className="tour-panel">
-                <div className="tour-copy">
+                <div key={`${activeTour.id}-copy`} className="tour-copy animate-fade-rise">
                   <h3>{activeTour.title}</h3>
                   <p>{activeTour.copy}</p>
                   <ul>
@@ -181,7 +164,7 @@ export default function Landing() {
                     ))}
                   </ul>
                 </div>
-                <div className="tour-image">
+                <div key={`${activeTour.id}-image`} className="tour-image animate-fade-rise-delay">
                   <img src={activeTour.image} alt={`${activeTour.label} preview`} />
                 </div>
               </div>

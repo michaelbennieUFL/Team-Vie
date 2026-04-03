@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -19,6 +20,7 @@ export default function Competitions() {
     const [showAddTask, setShowAddTask] = useState(false);
     const [newTask, setNewTask] = useState({ title: '', description: '', difficulty: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' });
     const { isDarkMode, toggleTheme } = useAppTheme();
+    const toast = useToast();
 
     // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
     // Keeping a ref to the latest selectedServerId ensures the WebSocket
@@ -159,7 +161,7 @@ export default function Competitions() {
     const handleCreateCompetition = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOpponent) {
-            alert('Please select an opponent from the search results.');
+            toast.info('Please select an opponent from the search results.');
             return;
         }
         try {
@@ -169,9 +171,9 @@ export default function Competitions() {
             setOpponentResults([]);
             setSelectedOpponent(null);
             await loadCompetitions();
-            alert('Competition created! Waiting for opponent to accept.');
+            toast.success('Competition created. Waiting for your opponent to accept.');
         } catch (error) {
-            alert('Failed to create competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to create competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -179,9 +181,9 @@ export default function Competitions() {
         try {
             await apiService.acceptCompetition(id);
             await loadCompetitions();
-            alert('Competition accepted! Let the games begin!');
+            toast.success('Competition accepted. Let the games begin.');
         } catch (error) {
-            alert('Failed to accept competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to accept competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -207,7 +209,7 @@ export default function Competitions() {
                 }));
             }
         } catch (error) {
-            alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -218,7 +220,7 @@ export default function Competitions() {
             await apiService.deleteCompetition(id);
             await loadCompetitions();
         } catch (error) {
-            alert('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -226,7 +228,7 @@ export default function Competitions() {
         e.preventDefault();
         if (!selectedCompetition) return;
         if (!newTask.title.trim()) {
-            alert('Please enter a task title.');
+            toast.info('Please enter a task title.');
             return;
         }
         try {
@@ -238,7 +240,7 @@ export default function Competitions() {
             setNewTask({ title: '', description: '', difficulty: 'MEDIUM' });
             setShowAddTask(false);
         } catch (error) {
-            alert('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 

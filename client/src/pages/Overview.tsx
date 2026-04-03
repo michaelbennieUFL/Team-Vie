@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import type { User, Task, VieServer } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -18,6 +19,7 @@ export default function Overview() {
         recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
     });
     const { isDarkMode, toggleTheme } = useAppTheme();
+    const toast = useToast();
 
     const loadData = async () => {
         try {
@@ -61,20 +63,20 @@ export default function Overview() {
             });
             setSelectedServerId('');
         } catch (error) {
-            alert('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
     const handleCompleteTask = async (taskId: number) => {
         try {
             const response = await apiService.completeTask(taskId);
-            alert(`Task completed! You earned ${response.points_earned} points!`);
+            toast.success(`Task completed. You earned ${response.points_earned} points.`);
             const userData = await apiService.getCurrentUser();
             setUser(userData);
             const tasksData = await apiService.getTasks();
             setTasks(tasksData);
         } catch (error) {
-            alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -84,7 +86,7 @@ export default function Overview() {
                 await apiService.deleteTask(taskId);
                 setTasks(tasks.filter(t => t.id !== taskId));
             } catch (error) {
-                alert('Failed to delete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                toast.error('Failed to delete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
             }
         }
     };
@@ -94,6 +96,10 @@ export default function Overview() {
         const name = getServerName(task.server);
         if (!tasksByServer[name]) tasksByServer[name] = [];
         tasksByServer[name].push(task);
+    });
+
+    Object.values(tasksByServer).forEach((serverTasks) => {
+        serverTasks.sort((a, b) => Number(a.is_completed) - Number(b.is_completed));
     });
 
     const pendingTasks = tasks.filter(t => !t.is_completed);
@@ -197,7 +203,7 @@ export default function Overview() {
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h4>Completed</h4>
-                        <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#4CAF50' }}>{completedTasks.length}</p>
+                        <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#b15a27' }}>{completedTasks.length}</p>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h4>Points</h4>
@@ -212,7 +218,7 @@ export default function Overview() {
 
             {Object.entries(tasksByServer).map(([serverName, serverTasks]) => (
                 <div key={serverName} className="page-section" style={{ marginBottom: '30px' }}>
-                    <h2 style={{ borderBottom: '2px solid #4CAF50', paddingBottom: '8px' }}>
+                    <h2 style={{ borderBottom: '2px solid #b15a27', paddingBottom: '8px' }}>
                         <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{serverName}
                         <span style={{ fontSize: '14px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
                             ({serverTasks.filter(t => !t.is_completed).length} pending)

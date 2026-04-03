@@ -26,7 +26,7 @@ export default function ProtectedNav({ isDarkMode, onToggleTheme }: ProtectedNav
     } finally {
       localStorage.removeItem('user');
       localStorage.removeItem('selectedServerId');
-      navigate('/login');
+      navigate('/');
     }
   };
 

@@ -76,10 +76,17 @@ class Task(models.Model):
             profile.save()
 
             from users.progress import record_personal_task_completion
+            from users.progress import record_daily_task_completion
             record_personal_task_completion(
                 user=self.user,
                 difficulty=self.priority,
                 awarded_points=self.awarded_points,
+                score_reason=self.score_reason,
+                completed_at=self.completed_at,
+            )
+            record_daily_task_completion(
+                user=self.user,
+                difficulty=self.priority,
                 score_reason=self.score_reason,
                 completed_at=self.completed_at,
             )

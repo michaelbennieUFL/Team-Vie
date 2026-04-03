@@ -111,6 +111,8 @@ export interface CelebrationPayload {
   phrase: string;
   points_earned: number;
   current_streak: number;
+  daily_limit_reached?: boolean;
+  limit_note?: string;
 }
 
 export interface UserSearchResult {

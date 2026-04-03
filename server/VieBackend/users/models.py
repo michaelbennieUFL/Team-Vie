@@ -38,6 +38,24 @@ class WeeklyProgress(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.week_start}"
 
+
+class DailyTaskProgress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='daily_task_progress_entries')
+    day = models.DateField()
+    low_full_count = models.IntegerField(default=0)
+    medium_full_count = models.IntegerField(default=0)
+    high_full_count = models.IntegerField(default=0)
+    low_reduced_count = models.IntegerField(default=0)
+    medium_reduced_count = models.IntegerField(default=0)
+    high_reduced_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-day']
+        unique_together = ('user', 'day')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.day}"
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

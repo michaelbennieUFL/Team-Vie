@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
+import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
 import type {
@@ -14,20 +15,45 @@ import type {
   VieServer,
 } from '../services/api';
 
-const CONFETTI_PIECES = Array.from({ length: 18 }, (_, index) => ({
-  id: index,
-  left: `${6 + (index % 6) * 16}%`,
-  delay: `${(index % 6) * 0.12}s`,
-  duration: `${2.8 + (index % 5) * 0.25}s`,
-  rotation: `${(index % 2 === 0 ? 1 : -1) * (18 + index * 6)}deg`,
-}));
+const fireCelebrationConfetti = () => {
+  if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
 
-const getConfettiStyle = (piece: (typeof CONFETTI_PIECES)[number]): CSSProperties & Record<'--confetti-rotate', string> => ({
-  left: piece.left,
-  animationDelay: piece.delay,
-  animationDuration: piece.duration,
-  '--confetti-rotate': piece.rotation,
-});
+  const shared = {
+    zIndex: 80,
+    ticks: 220,
+    gravity: 0.9,
+    startVelocity: 34,
+    scalar: 0.96,
+    disableForReducedMotion: true,
+    colors: ['#23526f', '#b15a27', '#673610', '#f5d2b7', '#fcf284', '#dce9f6'],
+  };
+
+  void confetti({
+    ...shared,
+    particleCount: 30,
+    spread: 78,
+    angle: 90,
+    origin: { x: 0.5, y: 0.12 },
+  });
+
+  void confetti({
+    ...shared,
+    particleCount: 18,
+    spread: 56,
+    angle: 62,
+    origin: { x: 0.2, y: 0.1 },
+  });
+
+  void confetti({
+    ...shared,
+    particleCount: 18,
+    spread: 56,
+    angle: 118,
+    origin: { x: 0.8, y: 0.1 },
+  });
+};
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -56,6 +82,7 @@ export default function Dashboard() {
   const [celebration, setCelebration] = useState<CelebrationPayload | null>(null);
   const { isDarkMode, toggleTheme } = useAppTheme();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const loadTasks = async (serverId?: number) => {
     try {
@@ -119,6 +146,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!celebration) return;
+    fireCelebrationConfetti();
     const timer = window.setTimeout(() => setCelebration(null), 4800);
     return () => window.clearTimeout(timer);
   }, [celebration]);
@@ -149,7 +177,7 @@ export default function Dashboard() {
       setNewServerName('');
       setNewServerDesc('');
     } catch (error) {
-      alert(`Failed to create server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to create server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -181,7 +209,7 @@ export default function Dashboard() {
       setJoinServerQuery('');
       setJoinServerResults([]);
     } catch (error) {
-      alert(`Failed to join server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to join server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -202,7 +230,7 @@ export default function Dashboard() {
         recurrence: 'NONE',
       });
     } catch (error) {
-      alert(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -219,7 +247,7 @@ export default function Dashboard() {
         refreshMotivation(),
       ]);
     } catch (error) {
-      alert(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -229,7 +257,7 @@ export default function Dashboard() {
       await apiService.deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
-      alert(`Failed to delete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to delete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -247,7 +275,7 @@ export default function Dashboard() {
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       setEditingTask(null);
     } catch (error) {
-      alert(`Failed to update task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to update task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -294,20 +322,14 @@ export default function Dashboard() {
       <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
 
       {celebration && (
-        <div className="celebration-overlay" aria-live="polite">
-          <div className="screen-confetti" aria-hidden="true">
-            {CONFETTI_PIECES.map((piece) => (
-              <span
-                key={piece.id}
-                className="confetti-piece screen-piece"
-                style={getConfettiStyle(piece)}
-              />
-            ))}
-          </div>
+        <div className="celebration-overlay celebration-banner-layer" aria-live="polite">
           <div className="celebration-popup">
             <p className="panel-kicker">Keep it up</p>
             <h2>{celebration.headline}</h2>
             <p>{celebration.phrase}</p>
+            {celebration.limit_note && (
+              <p className="celebration-note">{celebration.limit_note}</p>
+            )}
             <div className="celebration-stats">
               <strong>+{celebration.points_earned} pts</strong>
               <span>{celebration.current_streak} day streak</span>
@@ -359,7 +381,7 @@ export default function Dashboard() {
                 <p className="panel-subtitle">
                   {weeklyProgress?.goal_reached
                     ? 'Finish line reached. Keep going for a new personal best.'
-                    : `${weeklyPointsRemaining} points to reach this week&apos;s goal.`}
+                    : `${weeklyPointsRemaining} points to reach this week's goal.`}
                 </p>
               </div>
               <div className="stat-card">
@@ -518,23 +540,27 @@ export default function Dashboard() {
                 </button>
                 {showServerDropdown && (
                   <div className="workspace-dropdown leaderboard-card" style={{ position: 'absolute', top: '110%', left: 0, minWidth: 260, zIndex: 30 }}>
-                    <button className="ghost-btn full-width" onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}>
-                      + Create Server
-                    </button>
-                    <button className="ghost-btn full-width" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
-                      <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }} /> Join Server
-                    </button>
-                    {servers.map((server) => (
-                      <button
-                        key={server.id}
-                        className="ghost-btn full-width"
-                        onClick={() => handleSelectServer(server)}
-                        style={{ justifyContent: 'space-between', marginBottom: 6 }}
-                      >
-                        <span>{server.name}</span>
-                        {selectedServer?.id === server.id ? '✓' : ''}
+                    <div className="workspace-dropdown-actions">
+                      <button className="ghost-btn workspace-action-btn" onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}>
+                        + Create Server
                       </button>
-                    ))}
+                      <button className="ghost-btn workspace-action-btn" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
+                        <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }} /> Join Server
+                      </button>
+                    </div>
+                    <div className="workspace-server-list">
+                      {servers.map((server) => (
+                        <button
+                          key={server.id}
+                          className="ghost-btn full-width workspace-server-option"
+                          onClick={() => handleSelectServer(server)}
+                          style={{ justifyContent: 'space-between', marginBottom: 6 }}
+                        >
+                          <span>{server.name}</span>
+                          {selectedServer?.id === server.id ? '✓' : ''}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

@@ -63,5 +63,6 @@ class TaskViewSet(viewsets.ModelViewSet):
                 task_title=task.title,
                 points_earned=points_earned,
                 current_streak=task.user.profile.current_streak,
+                score_reason=score_reason,
             ),
         })
