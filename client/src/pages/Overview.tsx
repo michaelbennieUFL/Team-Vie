@@ -14,7 +14,6 @@ export default function Overview() {
         title: '',
         description: '',
         priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
-        points_value: 10,
         due_date: '',
         recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
     });
@@ -57,7 +56,6 @@ export default function Overview() {
                 title: '',
                 description: '',
                 priority: 'MEDIUM',
-                points_value: 10,
                 due_date: '',
                 recurrence: 'NONE'
             });
@@ -152,18 +150,10 @@ export default function Overview() {
                             onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
                             style={{ padding: '8px' }}
                         >
-                            <option value="LOW">Low Priority</option>
-                            <option value="MEDIUM">Medium Priority</option>
-                            <option value="HIGH">High Priority</option>
+                            <option value="LOW">Low Difficulty</option>
+                            <option value="MEDIUM">Medium Difficulty</option>
+                            <option value="HIGH">High Difficulty</option>
                         </select>
-                        <input
-                            type="number"
-                            placeholder="Points"
-                            value={newTask.points_value}
-                            onChange={(e) => setNewTask({ ...newTask, points_value: parseInt(e.target.value) })}
-                            min="1"
-                            style={{ padding: '8px', width: '80px' }}
-                        />
                         <input
                             type="date"
                             value={newTask.due_date}
@@ -180,6 +170,9 @@ export default function Overview() {
                             <option value="WEEKLY">Weekly</option>
                         </select>
                     </div>
+                    <p style={{ margin: '0 0 12px', color: 'var(--app-text-muted)', fontSize: '13px' }}>
+                        Points are assigned automatically from difficulty.
+                    </p>
                     <button type="submit">Create Task</button>
                 </form>
             )}
@@ -241,7 +234,7 @@ export default function Overview() {
                                         {task.is_completed && ' ✓'}
                                     </span>
                                     <span style={{ fontSize: '12px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
-                                        {task.priority} • {task.points_value} pts
+                                        {task.priority} • {task.awarded_points ?? task.points_value} pts
                                         {task.due_date && ` • Due: ${task.due_date}`}
                                         {task.recurrence && task.recurrence !== 'NONE' && ` • 🔄 ${task.recurrence}`}
                                     </span>

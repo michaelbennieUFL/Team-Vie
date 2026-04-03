@@ -12,7 +12,20 @@ export interface User {
     longest_streak: number;
     last_task_completed_date: string | null;
     region: string;
+    default_weekly_goal_points: number;
+    best_weekly_personal_points: number;
+    weekly_progress: WeeklyProgressSnapshot;
   };
+}
+
+export interface WeeklyProgressSnapshot {
+  week_start: string;
+  competitive_points: number;
+  personal_points: number;
+  weekly_goal_points: number;
+  goal_reached: boolean;
+  competitive_points_remaining: number;
+  reached_goal_at: string | null;
 }
 
 export interface VieServer {
@@ -32,6 +45,8 @@ export interface Task {
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   points_value: number;
+  awarded_points: number | null;
+  score_reason: string;
   is_completed: boolean;
   completed_at: string | null;
   created_at: string;
@@ -64,9 +79,13 @@ export interface CompetitionTask {
   id: number;
   title: string;
   description: string;
+  difficulty: 'LOW' | 'MEDIUM' | 'HIGH';
   points_value: number;
+  score_reason: string;
   challenger_completed: boolean;
+  challenger_completed_at: string | null;
   opponent_completed: boolean;
+  opponent_completed_at: string | null;
   created_at: string;
 }
 
@@ -76,6 +95,9 @@ export interface LeaderboardEntry {
   current_streak: number;
   region: string;
   rank: number;
+  goal_reached?: boolean;
+  reached_goal_at?: string | null;
+  weekly_goal_points?: number;
 }
 
 export interface MotivationQuote {
@@ -94,6 +116,61 @@ export interface CelebrationPayload {
 export interface UserSearchResult {
   id: number;
   username: string;
+}
+
+export interface ActivityEntry {
+  id: string;
+  source: 'personal' | 'competition';
+  title: string;
+  description: string;
+  difficulty: 'LOW' | 'MEDIUM' | 'HIGH' | string;
+  awarded_points: number;
+  score_reason: string;
+  completed_at: string;
+  server_id: number | null;
+  server_name: string;
+  competition_id: number | null;
+  competition_label: string;
+}
+
+export interface ActivitySummary {
+  total_points: number;
+  personal_points: number;
+  competition_points: number;
+  completed_count: number;
+  personal_completed_count: number;
+  competition_completed_count: number;
+  low_count: number;
+  medium_count: number;
+  high_count: number;
+  weekly_goal_points: number;
+  weekly_competitive_points: number;
+  weekly_personal_points: number;
+  weekly_goal_remaining: number;
+  weekly_goal_reached: boolean;
+  reached_goal_at: string | null;
+  best_weekly_personal_points: number;
+}
+
+export interface ActivityResponse {
+  user: User;
+  summary: ActivitySummary;
+  entries: ActivityEntry[];
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  due_date: string | null;
+  server: number | null;
+  recurrence: 'NONE' | 'DAILY' | 'WEEKLY';
+}
+
+export interface CreateCompetitionTaskInput {
+  title: string;
+  description?: string;
+  difficulty?: 'LOW' | 'MEDIUM' | 'HIGH';
 }
 
 // ─── Auth redirect helper ────────────────────────────────────────────────────
@@ -228,7 +305,7 @@ class ApiService {
     return this.handleResponse<Task[]>(response);
   }
 
-  async createTask(data: Omit<Task, 'id' | 'is_completed' | 'completed_at' | 'created_at' | 'updated_at'>) {
+  async createTask(data: CreateTaskInput) {
     const response = await fetch(`${API_BASE_URL}/tasks/`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -286,6 +363,21 @@ class ApiService {
       credentials: 'include',
     });
     return this.handleResponse<LeaderboardEntry[]>(response);
+  }
+
+  async getActivity(userId?: number, serverId?: number) {
+    const params = new URLSearchParams();
+    if (serverId) params.set('server', String(serverId));
+    const query = params.toString();
+    const base = userId
+      ? `${API_BASE_URL}/users/activity/${userId}/`
+      : `${API_BASE_URL}/users/activity/`;
+    const url = query ? `${base}?${query}` : base;
+    const response = await fetch(url, {
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<ActivityResponse>(response);
   }
 
   // Competitions
@@ -347,7 +439,7 @@ class ApiService {
     }
   }
 
-  async addCompetitionTask(competitionId: number, data: { title: string; description?: string; points_value?: number }) {
+  async addCompetitionTask(competitionId: number, data: CreateCompetitionTaskInput) {
     const response = await fetch(`${API_BASE_URL}/competitions/${competitionId}/add_task/`, {
       method: 'POST',
       headers: this.getHeaders(),

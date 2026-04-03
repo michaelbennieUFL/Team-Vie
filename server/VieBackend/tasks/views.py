@@ -3,11 +3,14 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.db.models import Q
-from django.utils import timezone
 from .models import Task
 from .serializers import TaskSerializer
+from .scoring import (
+    base_points_for_difficulty,
+    is_completion_cooldown_satisfied,
+    points_to_award_for_task,
+)
 from users.motivation import build_celebration_payload
-from competitions.models import Competition
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -22,7 +25,15 @@ class TaskViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        priority = serializer.validated_data.get('priority', 'MEDIUM')
+        serializer.save(
+            user=self.request.user,
+            points_value=base_points_for_difficulty(priority),
+        )
+
+    def perform_update(self, serializer):
+        priority = serializer.validated_data.get('priority', serializer.instance.priority)
+        serializer.save(points_value=base_points_for_difficulty(priority))
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
@@ -32,41 +43,25 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error': 'Task is already completed'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        task.complete_task()
+        if not is_completion_cooldown_satisfied(task.created_at):
+            return Response({
+                'error': 'Task must be at least 3 minutes old before completion'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-        active_competitions = Competition.objects.filter(
-            Q(challenger=request.user) | Q(opponent=request.user),
-            status='ACTIVE'
+        points_earned, score_reason = points_to_award_for_task(
+            user=request.user,
+            difficulty=task.priority,
         )
 
-        for competition in active_competitions:
-            if request.user == competition.challenger:
-                competition.challenger_score += task.points_value
-            elif request.user == competition.opponent:
-                competition.opponent_score += task.points_value
-            competition.save()
-
-            # Check if points goal has been reached
-            if competition.points_goal:
-                winner = None
-                if competition.challenger_score >= competition.points_goal:
-                    winner = competition.challenger
-                elif competition.opponent_score >= competition.points_goal:
-                    winner = competition.opponent
-
-                if winner:
-                    competition.status = 'COMPLETED'
-                    competition.winner = winner
-                    competition.completed_at = timezone.now()
-                    competition.save()
+        task.complete_task(awarded_points=points_earned, score_reason=score_reason)
 
         return Response({
             'message': 'Task completed successfully',
-            'points_earned': task.points_value,
+            'points_earned': points_earned,
             'task': TaskSerializer(task).data,
             'celebration': build_celebration_payload(
                 task_title=task.title,
-                points_earned=task.points_value,
+                points_earned=points_earned,
                 current_streak=task.user.profile.current_streak,
             ),
         })

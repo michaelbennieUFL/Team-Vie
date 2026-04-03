@@ -27,12 +27,22 @@ class Competition(models.Model):
         ordering = ['-created_at']
 
 class CompetitionTask(models.Model):
+    DIFFICULTY_CHOICES = [
+        ('LOW', 'Low'),
+        ('MEDIUM', 'Medium'),
+        ('HIGH', 'High'),
+    ]
+
     competition = models.ForeignKey(Competition, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='MEDIUM')
     points_value = models.IntegerField(default=10)
+    score_reason = models.CharField(max_length=64, blank=True)
     challenger_completed = models.BooleanField(default=False)
+    challenger_completed_at = models.DateTimeField(null=True, blank=True)
     opponent_completed = models.BooleanField(default=False)
+    opponent_completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

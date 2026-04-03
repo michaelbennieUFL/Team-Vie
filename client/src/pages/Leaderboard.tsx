@@ -43,7 +43,12 @@ export default function Leaderboard() {
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1><i className="fa-solid fa-trophy" style={{ marginRight: '10px', color: '#FFD700' }} />Leaderboard</h1>
+                <div>
+                    <h1 style={{ margin: 0 }}><i className="fa-solid fa-trophy" style={{ marginRight: '10px', color: '#FFD700' }} />Leaderboard</h1>
+                    <p style={{ margin: '8px 0 0', color: 'var(--app-text-muted)' }}>
+                        Ranked by this week&apos;s competitive points and who reaches the finish line first.
+                    </p>
+                </div>
             </div>
 
             <div className="page-section page-section-tight" style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -72,7 +77,7 @@ export default function Leaderboard() {
                         <tr style={{ background: 'var(--app-surface-muted)' }}>
                             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Rank</th>
                             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Username</th>
-                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Points</th>
+                            <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Weekly Points</th>
                             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Streak <i className="fa-solid fa-fire" style={{ color: '#FF6B35' }} /></th>
                             <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid var(--app-border)' }}>Region</th>
                         </tr>
@@ -90,7 +95,12 @@ export default function Leaderboard() {
                                     {entry.rank > 3 && entry.rank}
                                 </td>
                                 <td style={{ padding: '12px', fontWeight: 'bold' }}>{entry.username}</td>
-                                <td style={{ padding: '12px' }}>{entry.points}</td>
+                                <td style={{ padding: '12px' }}>
+                                    {entry.points}
+                                    {entry.goal_reached ? (
+                                        <span style={{ marginLeft: '8px', fontSize: '12px', color: '#2d9d5b', fontWeight: 600 }}>Finished</span>
+                                    ) : null}
+                                </td>
                                 <td style={{ padding: '12px' }}>{entry.current_streak} days</td>
                                 <td style={{ padding: '12px' }}>{entry.region || 'N/A'}</td>
                             </tr>

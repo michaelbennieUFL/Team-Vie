@@ -46,7 +46,6 @@ export default function Dashboard() {
     title: '',
     description: '',
     priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
-    points_value: 10,
     due_date: '',
     recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
   });
@@ -192,7 +191,6 @@ export default function Dashboard() {
       const task = await apiService.createTask({
         ...newTask,
         server: selectedServer?.id || null,
-        points_value: Number(newTask.points_value) || 10,
       });
       setTasks((prev) => [task, ...prev]);
       setShowAddTask(false);
@@ -200,7 +198,6 @@ export default function Dashboard() {
         title: '',
         description: '',
         priority: 'MEDIUM',
-        points_value: 10,
         due_date: '',
         recurrence: 'NONE',
       });
@@ -244,7 +241,6 @@ export default function Dashboard() {
         title: editingTask.title,
         description: editingTask.description,
         priority: editingTask.priority,
-        points_value: editingTask.points_value,
         due_date: editingTask.due_date,
         recurrence: editingTask.recurrence,
       });
@@ -255,16 +251,12 @@ export default function Dashboard() {
     }
   };
 
-  const pointsToday = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.is_completed)
-        .reduce((sum, task) => sum + (task.points_value || 0), 0),
-    [tasks]
-  );
-  const currentPoints = user?.profile.points ?? 0;
-  const nextTier = Math.max(600, Math.ceil((currentPoints + 1) / 500) * 500);
-  const progress = Math.min((pointsToday / nextTier) * 100, 100);
+  const weeklyProgress = user?.profile.weekly_progress;
+  const weeklyCompetitivePoints = weeklyProgress?.competitive_points ?? 0;
+  const weeklyPersonalPoints = weeklyProgress?.personal_points ?? 0;
+  const weeklyGoalPoints = weeklyProgress?.weekly_goal_points ?? user?.profile.default_weekly_goal_points ?? 120;
+  const weeklyPointsRemaining = weeklyProgress?.competitive_points_remaining ?? Math.max(weeklyGoalPoints - weeklyCompetitivePoints, 0);
+  const progress = Math.min((weeklyCompetitivePoints / weeklyGoalPoints) * 100, 100);
   const priorityCounts = useMemo(
     () => ({
       high: tasks.filter((t) => t.priority === 'HIGH').length,
@@ -334,7 +326,7 @@ export default function Dashboard() {
               </span>
               <span className="welcome-name">{user?.first_name || user?.username || 'there'}</span>
             </h2>
-            <p className="panel-subtitle">Ready to stack points and keep the streak alive.</p>
+            <p className="panel-subtitle">Reach the weekly finish line and keep the streak alive.</p>
           </div>
           <div className="context-side">
             <div className="motivation-card">
@@ -361,15 +353,21 @@ export default function Dashboard() {
 
             <div className="stats-grid context-stats">
               <div className="stat-card">
-                <p className="panel-kicker">Points earned</p>
-                <h3>{user?.profile.points ?? 0}</h3>
+                <p className="panel-kicker">Weekly finish line</p>
+                <h3>{weeklyCompetitivePoints} / {weeklyGoalPoints}</h3>
                 <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
-                <p className="panel-subtitle">{Math.max(nextTier - pointsToday, 0)} points to next reward tier.</p>
+                <p className="panel-subtitle">
+                  {weeklyProgress?.goal_reached
+                    ? 'Finish line reached. Keep going for a new personal best.'
+                    : `${weeklyPointsRemaining} points to reach this week&apos;s goal.`}
+                </p>
               </div>
               <div className="stat-card">
                 <p className="panel-kicker">Current streak</p>
                 <h3>{user?.profile.current_streak ?? 0} days</h3>
-                <p className="panel-subtitle">Longest streak: {user?.profile.longest_streak ?? 0} days.</p>
+                <p className="panel-subtitle">
+                  {weeklyPersonalPoints} personal pts this week. Best week: {user?.profile.best_weekly_personal_points ?? 0}.
+                </p>
                 <div className="streak-strip">
                   {Array.from({ length: 7 }).map((_, idx) => (
                     <span key={idx} className={idx < Math.min((user?.profile.current_streak ?? 0), 7) ? 'active' : ''} />
@@ -397,9 +395,9 @@ export default function Dashboard() {
             </div>
 
             <div className="category-row">
-              <div className="category-pill"><span>High priority</span><strong>{priorityCounts.high}</strong></div>
-              <div className="category-pill"><span>Medium priority</span><strong>{priorityCounts.medium}</strong></div>
-              <div className="category-pill"><span>Low priority</span><strong>{priorityCounts.low}</strong></div>
+              <div className="category-pill"><span>High difficulty</span><strong>{priorityCounts.high}</strong></div>
+              <div className="category-pill"><span>Medium difficulty</span><strong>{priorityCounts.medium}</strong></div>
+              <div className="category-pill"><span>Low difficulty</span><strong>{priorityCounts.low}</strong></div>
             </div>
 
             <div className="tasks-list">
@@ -421,7 +419,7 @@ export default function Dashboard() {
                     </div>
                     {task.description && <p className="task-notes">{task.description}</p>}
                     <div className="task-meta">
-                      <span><i className="fa-solid fa-star" /> {task.points_value} pts</span>
+                      <span><i className="fa-solid fa-star" /> {task.awarded_points ?? task.points_value} pts</span>
                       {task.due_date && <span><i className="fa-solid fa-clock" /> Due {task.due_date}</span>}
                       {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
                     </div>
@@ -564,16 +562,14 @@ export default function Dashboard() {
               <label>Description
                 <textarea rows={3} placeholder="Add context" value={newTask.description} onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))} />
               </label>
-              <label>Priority
+              <label>Difficulty
                 <select value={newTask.priority} onChange={(e) => setNewTask((p) => ({ ...p, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' }))}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
                 </select>
               </label>
-              <label>Points
-                <input type="number" min="1" value={newTask.points_value} onChange={(e) => setNewTask((p) => ({ ...p, points_value: Number(e.target.value) || 1 }))} />
-              </label>
+              <p className="panel-subtitle" style={{ margin: 0 }}>Points are assigned automatically from difficulty.</p>
               <label>Due date
                 <input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} />
               </label>
@@ -612,16 +608,14 @@ export default function Dashboard() {
               <label>Description
                 <textarea rows={3} value={editingTask.description} onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })} />
               </label>
-              <label>Priority
+              <label>Difficulty
                 <select value={editingTask.priority} onChange={(e) => setEditingTask({ ...editingTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
                 </select>
               </label>
-              <label>Points
-                <input type="number" min="1" value={editingTask.points_value} onChange={(e) => setEditingTask({ ...editingTask, points_value: Number(e.target.value) || 1 })} />
-              </label>
+              <p className="panel-subtitle" style={{ margin: 0 }}>Points are assigned automatically from difficulty.</p>
               <div className="modal-actions">
                 <button type="button" className="ghost-btn" onClick={() => setEditingTask(null)}>Close</button>
                 <button type="submit" className="primary-btn">Save changes</button>

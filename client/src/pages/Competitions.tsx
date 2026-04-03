@@ -17,7 +17,7 @@ export default function Competitions() {
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const [showAddTask, setShowAddTask] = useState(false);
-    const [newTask, setNewTask] = useState({ title: '', description: '', points_value: 10 });
+    const [newTask, setNewTask] = useState({ title: '', description: '', difficulty: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' });
     const { isDarkMode, toggleTheme } = useAppTheme();
 
     // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
@@ -235,7 +235,7 @@ export default function Competitions() {
             setCompetitions(prev =>
                 prev.map(c => c.id === result.competition.id ? result.competition : c)
             );
-            setNewTask({ title: '', description: '', points_value: 10 });
+            setNewTask({ title: '', description: '', difficulty: 'MEDIUM' });
             setShowAddTask(false);
         } catch (error) {
             alert('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
@@ -463,14 +463,19 @@ export default function Competitions() {
                                     style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
                                 />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <label>Points:</label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={newTask.points_value}
-                                        onChange={(e) => setNewTask({ ...newTask, points_value: Number(e.target.value) })}
-                                        style={{ padding: '8px', width: '80px' }}
-                                    />
+                                    <label>Difficulty:</label>
+                                    <select
+                                        value={newTask.difficulty}
+                                        onChange={(e) => setNewTask({ ...newTask, difficulty: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
+                                        style={{ padding: '8px' }}
+                                    >
+                                        <option value="LOW">Low</option>
+                                        <option value="MEDIUM">Medium</option>
+                                        <option value="HIGH">High</option>
+                                    </select>
+                                    <span style={{ color: 'var(--app-text-muted)', fontSize: '13px' }}>
+                                        Points are assigned automatically from difficulty.
+                                    </span>
                                     <button type="submit" style={{
                                         padding: '8px 16px',
                                         background: '#4CAF50',

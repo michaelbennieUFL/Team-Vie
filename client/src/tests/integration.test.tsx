@@ -167,7 +167,24 @@ describe('Register page', () => {
 describe('Competitions page', () => {
     const mockUser = {
         id: 1, username: 'demo', email: 'demo@test.com', first_name: 'Demo', last_name: 'User',
-        profile: { points: 100, current_streak: 3, longest_streak: 5, last_task_completed_date: null, region: 'FL' },
+        profile: {
+            points: 100,
+            current_streak: 3,
+            longest_streak: 5,
+            last_task_completed_date: null,
+            region: 'FL',
+            default_weekly_goal_points: 120,
+            best_weekly_personal_points: 160,
+            weekly_progress: {
+                week_start: '2026-03-30',
+                competitive_points: 40,
+                personal_points: 55,
+                weekly_goal_points: 120,
+                goal_reached: false,
+                competitive_points_remaining: 80,
+                reached_goal_at: null,
+            },
+        },
     };
 
     beforeEach(() => {

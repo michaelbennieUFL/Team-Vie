@@ -9,6 +9,7 @@ type ProtectedNavProps = {
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/overview', label: 'All Tasks' },
+  { to: '/progress', label: 'Progress' },
   { to: '/schedule', label: 'Schedule' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/competitions', label: 'Competitions' },

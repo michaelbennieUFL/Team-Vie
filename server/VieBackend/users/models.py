@@ -10,9 +10,33 @@ class UserProfile(models.Model):
     longest_streak = models.IntegerField(default=0)
     last_task_completed_date = models.DateField(null=True, blank=True)
     region = models.CharField(max_length=100, blank=True)
+    default_weekly_goal_points = models.IntegerField(default=120)
+    best_weekly_personal_points = models.IntegerField(default=0)
     
     def __str__(self):
         return f"{self.user.username}'s Profile"
+
+
+class WeeklyProgress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weekly_progress_entries')
+    week_start = models.DateField()
+    competitive_points = models.IntegerField(default=0)
+    personal_points = models.IntegerField(default=0)
+    weekly_goal_points = models.IntegerField(default=120)
+    reached_goal_at = models.DateTimeField(null=True, blank=True)
+    low_full_count = models.IntegerField(default=0)
+    medium_full_count = models.IntegerField(default=0)
+    high_full_count = models.IntegerField(default=0)
+    low_reduced_count = models.IntegerField(default=0)
+    medium_reduced_count = models.IntegerField(default=0)
+    high_reduced_count = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-week_start']
+        unique_together = ('user', 'week_start')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.week_start}"
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

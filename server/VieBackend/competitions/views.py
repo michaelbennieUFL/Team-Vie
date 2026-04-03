@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from .models import Competition, CompetitionTask
 from .serializers import CompetitionSerializer, CompetitionTaskSerializer
+from tasks.scoring import base_points_for_difficulty, is_completion_cooldown_satisfied, normalize_difficulty
 
 
 def check_winner(competition):
@@ -42,9 +43,10 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         points_goal = self.request.data.get('points_goal', None)
+        parsed_goal = int(points_goal) if points_goal else None
         serializer.save(
             challenger=self.request.user,
-            points_goal=int(points_goal) if points_goal else None
+            points_goal=parsed_goal if parsed_goal and parsed_goal > 0 else None
         )
 
     @action(detail=True, methods=['post'])
@@ -85,7 +87,9 @@ class CompetitionViewSet(viewsets.ModelViewSet):
 
         title = request.data.get('title', '').strip()
         description = request.data.get('description', '').strip()
-        points_value = request.data.get('points_value', 10)
+        difficulty = normalize_difficulty(
+            request.data.get('difficulty') or request.data.get('priority')
+        )
 
         if not title:
             return Response({
@@ -96,7 +100,9 @@ class CompetitionViewSet(viewsets.ModelViewSet):
             competition=competition,
             title=title,
             description=description,
-            points_value=int(points_value),
+            difficulty=difficulty,
+            points_value=base_points_for_difficulty(difficulty),
+            score_reason=f'v1:competition_{difficulty.lower()}',
         )
 
         return Response({
@@ -121,15 +127,22 @@ class CompetitionViewSet(viewsets.ModelViewSet):
                 'error': 'Task not found'
             }, status=status.HTTP_404_NOT_FOUND)
 
+        if not is_completion_cooldown_satisfied(task.created_at):
+            return Response({
+                'error': 'Competition task must be at least 3 minutes old before completion'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         if request.user == competition.challenger:
             if task.challenger_completed:
                 return Response({'error': 'Task already completed'}, status=status.HTTP_400_BAD_REQUEST)
             task.challenger_completed = True
+            task.challenger_completed_at = timezone.now()
             competition.challenger_score += task.points_value
         elif request.user == competition.opponent:
             if task.opponent_completed:
                 return Response({'error': 'Task already completed'}, status=status.HTTP_400_BAD_REQUEST)
             task.opponent_completed = True
+            task.opponent_completed_at = timezone.now()
             competition.opponent_score += task.points_value
         else:
             return Response({'error': 'Not a participant'}, status=status.HTTP_403_FORBIDDEN)

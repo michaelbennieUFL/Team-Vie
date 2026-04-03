@@ -10,4 +10,6 @@ urlpatterns = [
     path('motivation/', views.motivational_quote_view, name='motivational-quote'),
     path('search/', views.search_users_view, name='search-users'),
     path('leaderboard/', views.leaderboard_view, name='leaderboard'),
+    path('activity/', views.activity_view, name='activity-self'),
+    path('activity/<int:user_id>/', views.activity_view, name='activity-user'),
 ]
