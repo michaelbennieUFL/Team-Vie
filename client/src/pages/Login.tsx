@@ -30,7 +30,7 @@ export default function Login() {
             {/* Theme toggle — top-right corner, consistent with protected pages */}
             <button
                 type="button"
-                className="theme-icon-btn login-theme-btn"
+                className="theme-icon-btn login-theme-btn liquid-glass"
                 onClick={toggleTheme}
                 aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -39,12 +39,12 @@ export default function Login() {
                 {isDarkMode ? '☀' : '☾'}
             </button>
 
-            <Link className="ghost-btn login-back" to="/">
+            <Link className="ghost-btn login-back liquid-glass" to="/">
                 <i className="fa-solid fa-arrow-left" />
                 Back to main page
             </Link>
 
-            <section className="login-shell">
+            <section className="login-shell liquid-glass">
                 <div className="login-brand">
                     <span className="brand-mark">V</span>
                     <div>

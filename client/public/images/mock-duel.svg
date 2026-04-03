@@ -1,16 +1,46 @@
 <svg width="1100" height="700" viewBox="0 0 1100 700" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1100" height="700" rx="40" fill="#FFFFFF"/>
-  <rect x="60" y="60" width="980" height="580" rx="28" fill="#F6F5F2" stroke="#E4E3DD"/>
-  <rect x="120" y="120" width="340" height="36" rx="12" fill="#0B0D0F"/>
-  <rect x="120" y="190" width="420" height="14" rx="7" fill="#CCD3D8"/>
-  <rect x="120" y="250" width="420" height="220" rx="24" fill="#0B0D0F"/>
-  <rect x="150" y="290" width="200" height="14" rx="7" fill="#20D6B5"/>
-  <rect x="150" y="320" width="260" height="12" rx="6" fill="#5A6168"/>
-  <rect x="150" y="350" width="220" height="12" rx="6" fill="#5A6168"/>
-  <rect x="560" y="250" width="420" height="220" rx="24" fill="#FFFFFF" stroke="#E4E3DD"/>
-  <rect x="590" y="290" width="200" height="14" rx="7" fill="#0F7FE8"/>
-  <rect x="590" y="320" width="260" height="12" rx="6" fill="#CCD3D8"/>
-  <rect x="590" y="350" width="220" height="12" rx="6" fill="#CCD3D8"/>
-  <rect x="120" y="520" width="840" height="90" rx="20" fill="#20D6B5"/>
-  <rect x="160" y="555" width="240" height="14" rx="7" fill="#0B0D0F"/>
+  <defs>
+    <linearGradient id="duelBg" x1="94" y1="60" x2="986" y2="636" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#23526F"/>
+      <stop offset="1" stop-color="#152D3D"/>
+    </linearGradient>
+    <linearGradient id="duelLeft" x1="222" y1="0" x2="0" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5D2B7"/>
+      <stop offset="1" stop-color="#B15A27"/>
+    </linearGradient>
+    <linearGradient id="duelRight" x1="0" y1="0" x2="222" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5D2B7"/>
+      <stop offset="1" stop-color="#B15A27"/>
+    </linearGradient>
+  </defs>
+  <rect width="1100" height="700" rx="40" fill="#08131C"/>
+  <rect x="52" y="52" width="996" height="596" rx="30" fill="url(#duelBg)"/>
+  <rect x="76" y="80" width="948" height="540" rx="26" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)"/>
+  <rect x="112" y="118" width="876" height="138" rx="30" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.14)"/>
+  <rect x="112" y="282" width="876" height="304" rx="30" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.14)"/>
+
+  <text x="150" y="166" fill="#EEF4FB" font-family="Instrument Serif, serif" font-size="38">Friendly competition</text>
+  <text x="150" y="196" fill="rgba(238,244,251,0.66)" font-family="Inter, sans-serif" font-size="15">First to the target wins. Shared goal, honest pace.</text>
+
+  <text x="176" y="346" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="16" font-weight="700">maria</text>
+  <text x="906" y="346" text-anchor="end" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="16" font-weight="700">andy_is_king</text>
+  <text x="176" y="378" fill="rgba(238,244,251,0.72)" font-family="Inter, sans-serif" font-size="14">42 pts</text>
+  <text x="906" y="378" text-anchor="end" fill="rgba(238,244,251,0.72)" font-family="Inter, sans-serif" font-size="14">36 pts</text>
+
+  <rect x="176" y="404" width="222" height="16" rx="8" fill="rgba(255,255,255,0.14)"/>
+  <rect x="176" y="404" width="158" height="16" rx="8" fill="url(#duelLeft)"/>
+  <rect x="684" y="404" width="222" height="16" rx="8" fill="rgba(255,255,255,0.14)"/>
+  <rect x="748" y="404" width="158" height="16" rx="8" fill="url(#duelRight)"/>
+  <circle cx="550" cy="412" r="18" fill="rgba(245,210,183,0.18)" stroke="rgba(245,210,183,0.5)"/>
+  <circle cx="550" cy="412" r="6" fill="#F5D2B7"/>
+
+  <text x="476" y="468" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="14" font-weight="600">18 pts to win</text>
+  <text x="524" y="500" fill="rgba(238,244,251,0.58)" font-family="Inter, sans-serif" font-size="13">3 shared tasks</text>
+
+  <rect x="164" y="520" width="236" height="44" rx="22" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.14)"/>
+  <text x="233" y="548" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="14" font-weight="600">View tasks</text>
+  <rect x="432" y="520" width="236" height="44" rx="22" fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.14)"/>
+  <text x="498" y="548" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="14" font-weight="600">Add task</text>
+  <rect x="700" y="520" width="236" height="44" rx="22" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.14)"/>
+  <text x="785" y="548" fill="#EEF4FB" font-family="Inter, sans-serif" font-size="14" font-weight="600">Open matchup</text>
 </svg>
