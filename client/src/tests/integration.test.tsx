@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -12,6 +12,16 @@ vi.mock('../services/api', () => ({
         getCurrentUser: vi.fn(),
         getServers: vi.fn().mockResolvedValue([]),
         getCompetitions: vi.fn().mockResolvedValue([]),
+        getLeaderboard: vi.fn().mockResolvedValue([]),
+        getTasks: vi.fn().mockResolvedValue([]),
+        getMotivationalQuote: vi.fn().mockResolvedValue({ quote: '', author: '', tone: '' }),
+        createTask: vi.fn(),
+        updateTask: vi.fn(),
+        deleteTask: vi.fn(),
+        completeTask: vi.fn(),
+        searchServers: vi.fn().mockResolvedValue([]),
+        joinServer: vi.fn(),
+        createServer: vi.fn(),
         acceptCompetition: vi.fn(),
         createCompetition: vi.fn(),
         searchUsers: vi.fn().mockResolvedValue([]),
@@ -30,6 +40,7 @@ import { apiService } from '../services/api';
 import ProtectedNav from '../components/ProtectedNav';
 import Login from '../pages/Login';
 import Competitions from '../pages/Competitions';
+import Dashboard from '../pages/Dashboard';
 
 function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
     return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
@@ -223,13 +234,172 @@ describe('Competitions page', () => {
     });
 });
 
+describe('Dashboard page', () => {
+    const mockDashboardUser = {
+        id: 1,
+        username: 'demo',
+        email: 'demo@test.com',
+        first_name: 'Demo',
+        last_name: 'User',
+        profile: {
+            points: 120,
+            current_streak: 2,
+            longest_streak: 4,
+            last_task_completed_date: null,
+            region: 'FL',
+        },
+    };
+
+    const mockServer = {
+        id: 10,
+        name: 'Dev server',
+        description: 'A test workspace',
+        created_by: 1,
+        created_at: '',
+        member_count: 1,
+        role: 'OWNER',
+        active_competition: null,
+    };
+
+    const mockTask = {
+        id: 101,
+        title: 'Finish biology notes',
+        description: 'Read chapter 4 and summarize',
+        priority: 'MEDIUM' as const,
+        points_value: 15,
+        is_completed: false,
+        completed_at: null,
+        created_at: '',
+        updated_at: '',
+        due_date: null,
+        server: 10,
+        recurrence: 'NONE' as const,
+    };
+
+    const mockJoinServer = {
+        id: 20,
+        name: 'Alpha Server',
+        description: 'Join this team',
+        created_by: 2,
+        created_at: '',
+        member_count: 8,
+        role: null,
+        active_competition: null,
+    };
+
+    const mockMotivation = {
+        quote: 'Keep going, one step at a time.',
+        author: 'Coach',
+        tone: 'Encouraging',
+    };
+
+    beforeEach(() => {
+        vi.mocked(apiService.getCurrentUser).mockResolvedValue(mockDashboardUser);
+        vi.mocked(apiService.getServers).mockResolvedValue([mockServer]);
+        vi.mocked(apiService.getTasks).mockResolvedValue([mockTask]);
+        vi.mocked(apiService.getLeaderboard).mockResolvedValue([]);
+        vi.mocked(apiService.getCompetitions).mockResolvedValue([]);
+        vi.mocked(apiService.getMotivationalQuote).mockResolvedValue(mockMotivation);
+        vi.mocked(apiService.createTask).mockResolvedValue({
+            ...mockTask,
+            id: 202,
+            title: 'Create React tests',
+            is_completed: false,
+        });
+        vi.mocked(apiService.searchServers).mockResolvedValue([]);
+        vi.mocked(apiService.joinServer).mockResolvedValue({ message: 'ok' });
+        vi.mocked(apiService.getServers).mockResolvedValue([mockServer]);
+    });
+
+    afterEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+    });
+
+    it('renders dashboard greeting, tasks, and quote', async () => {
+        renderWithRouter(<Dashboard />);
+        await waitFor(() => {
+            expect(screen.getByText(/Good (morning|afternoon|evening), Demo/i)).toBeInTheDocument();
+            expect(screen.getByText('Finish biology notes')).toBeInTheDocument();
+            expect(screen.getByText(/Keep going, one step at a time\./i)).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: /Dev server/i })).toBeInTheDocument();
+        });
+    });
+
+    it('opens the quick add task modal and creates a new task', async () => {
+        renderWithRouter(<Dashboard />);
+        await waitFor(() => screen.getByRole('button', { name: /quick add task/i }));
+        await userEvent.click(screen.getByRole('button', { name: /quick add task/i }));
+        expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+        await userEvent.type(screen.getByPlaceholderText('Finish biology notes'), 'Create React tests');
+        const addTaskDialog = within(screen.getByRole('dialog'));
+        await userEvent.click(addTaskDialog.getByRole('button', { name: /add task/i }));
+
+        await waitFor(() => {
+            expect(apiService.createTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'Create React tests' }));
+            expect(screen.getByText('Create React tests')).toBeInTheDocument();
+        });
+    });
+
+    it('completes a task and shows celebration overlay', async () => {
+        vi.mocked(apiService.completeTask).mockResolvedValueOnce({
+            message: 'ok',
+            points_earned: 25,
+            task: { ...mockTask, is_completed: true, completed_at: '2026-04-04T12:00:00Z' },
+            celebration: {
+                headline: 'Nice work',
+                phrase: 'You earned points',
+                points_earned: 25,
+                current_streak: 3,
+            },
+        });
+        vi.mocked(apiService.getCurrentUser).mockResolvedValueOnce({
+            ...mockDashboardUser,
+            profile: { ...mockDashboardUser.profile, points: 145, current_streak: 3 },
+        });
+
+        renderWithRouter(<Dashboard />);
+        await waitFor(() => screen.getByRole('button', { name: /Mark Finish biology notes complete/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Mark Finish biology notes complete/i }));
+
+        await waitFor(() => {
+            expect(apiService.completeTask).toHaveBeenCalledWith(mockTask.id);
+            expect(screen.getByText('Nice work')).toBeInTheDocument();
+            expect(screen.getByText('+25 pts')).toBeInTheDocument();
+        });
+    });
+
+    it('searches for a server and joins it', async () => {
+        vi.mocked(apiService.searchServers).mockResolvedValue([mockJoinServer]);
+        vi.mocked(apiService.getServers).mockResolvedValueOnce([mockServer, mockJoinServer]);
+
+        renderWithRouter(<Dashboard />);
+        await waitFor(() => screen.getByRole('button', { name: /Dev server/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Dev server/i }));
+        await userEvent.click(screen.getByRole('button', { name: /join server/i }));
+
+        const searchInput = screen.getByPlaceholderText(/Search by name.../i);
+        await userEvent.type(searchInput, 'Alpha');
+
+        const joinDialog = within(screen.getByRole('dialog'));
+        await waitFor(() => expect(joinDialog.getByText(/Alpha Server/i)).toBeInTheDocument());
+        await userEvent.click(joinDialog.getByRole('button', { name: /join/i }));
+
+        await waitFor(() => {
+            expect(apiService.joinServer).toHaveBeenCalledWith(mockJoinServer.id);
+            expect(apiService.getServers).toHaveBeenCalled();
+        });
+    });
+});
+
 describe('apiService auth redirect', () => {
     it('redirects to /login and clears storage on 401', async () => {
         localStorage.setItem('user', 'somebody');
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
             ok: false, status: 401, json: async () => ({ error: 'Unauthorized' }),
         }));
-        const { apiService: realApi } = await import('../services/api');
+        const { apiService: realApi } = await vi.importActual<typeof import('../services/api')>('../services/api');
         await expect(realApi.getCurrentUser()).rejects.toThrow('Session expired');
         expect(localStorage.getItem('user')).toBeNull();
         vi.unstubAllGlobals();
