@@ -41,6 +41,9 @@ import ProtectedNav from '../components/ProtectedNav';
 import Login from '../pages/Login';
 import Competitions from '../pages/Competitions';
 import Dashboard from '../pages/Dashboard';
+import Overview from '../pages/Overview';
+import Leaderboard from '../pages/Leaderboard';
+import Schedule from '../pages/Schedule';
 
 function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
     return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
@@ -393,6 +396,234 @@ describe('Dashboard page', () => {
     });
 });
 
+describe('Overview page', () => {
+    const mockOverviewUser = {
+        id: 1,
+        username: 'demo',
+        email: 'demo@test.com',
+        first_name: 'Demo',
+        last_name: 'User',
+        profile: {
+            points: 150,
+            current_streak: 3,
+            longest_streak: 5,
+            last_task_completed_date: null,
+            region: 'FL',
+        },
+    };
+
+    const mockServer = {
+        id: 10,
+        name: 'Dev server',
+        description: 'A test workspace',
+        created_by: 1,
+        created_at: '',
+        member_count: 1,
+        role: 'OWNER',
+        active_competition: null,
+    };
+
+    const mockTask = {
+        id: 101,
+        title: 'Finish biology notes',
+        description: 'Read chapter 4 and summarize',
+        priority: 'MEDIUM' as const,
+        points_value: 15,
+        is_completed: false,
+        completed_at: null,
+        created_at: '',
+        updated_at: '',
+        due_date: null,
+        server: 10,
+        recurrence: 'NONE' as const,
+    };
+
+    beforeEach(() => {
+        vi.mocked(apiService.getCurrentUser).mockResolvedValue(mockOverviewUser);
+        vi.mocked(apiService.getServers).mockResolvedValue([mockServer]);
+        vi.mocked(apiService.getTasks).mockResolvedValue([mockTask]);
+        vi.mocked(apiService.createTask).mockResolvedValue({
+            ...mockTask,
+            id: 202,
+            title: 'Create React tests',
+            is_completed: false,
+        });
+        vi.mocked(apiService.completeTask).mockResolvedValue({
+            message: 'ok',
+            points_earned: 15,
+            task: { ...mockTask, is_completed: true },
+            celebration: { headline: '', phrase: '', points_earned: 15, current_streak: 4 },
+        });
+        vi.mocked(apiService.deleteTask).mockResolvedValue(undefined);
+        vi.spyOn(window, 'alert').mockImplementation(() => {});
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+    });
+
+    afterEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+        vi.restoreAllMocks();
+    });
+
+    it('renders overview stats and tasks', async () => {
+        renderWithRouter(<Overview />);
+        await waitFor(() => {
+            expect(screen.getByText('📋 Overview — All Tasks')).toBeInTheDocument();
+            expect(screen.getByText('Total Tasks')).toBeInTheDocument();
+            expect(screen.getByText('150')).toBeInTheDocument(); // points
+            expect(screen.getByText('Finish biology notes')).toBeInTheDocument();
+        });
+    });
+
+    it('adds a new task', async () => {
+        renderWithRouter(<Overview />);
+        await waitFor(() => screen.getByRole('button', { name: /\+ Add Task/i }));
+        await userEvent.click(screen.getByRole('button', { name: /\+ Add Task/i }));
+
+        await userEvent.type(screen.getByPlaceholderText('Task Title'), 'Create React tests');
+        await userEvent.click(screen.getByRole('button', { name: /Create Task/i }));
+
+        await waitFor(() => {
+            expect(apiService.createTask).toHaveBeenCalledWith(expect.objectContaining({ title: 'Create React tests' }));
+            expect(screen.getByText('Create React tests')).toBeInTheDocument();
+        });
+    });
+
+    it('completes a task', async () => {
+        renderWithRouter(<Overview />);
+        await waitFor(() => screen.getByRole('button', { name: /Complete/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Complete/i }));
+
+        await waitFor(() => {
+            expect(apiService.completeTask).toHaveBeenCalledWith(mockTask.id);
+            expect(window.alert).toHaveBeenCalledWith('Task completed! You earned 15 points!');
+        });
+    });
+
+    it('deletes a task', async () => {
+        renderWithRouter(<Overview />);
+        await waitFor(() => screen.getByRole('button', { name: /Delete/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Delete/i }));
+
+        await waitFor(() => {
+            expect(apiService.deleteTask).toHaveBeenCalledWith(mockTask.id);
+            expect(screen.queryByText('Finish biology notes')).not.toBeInTheDocument();
+        });
+    });
+});
+
+describe('Leaderboard page', () => {
+    const mockLeaderboardEntries = [
+        { username: 'alice', points: 200, current_streak: 5, region: 'CA', rank: 1 },
+        { username: 'demo', points: 150, current_streak: 3, region: 'FL', rank: 2 },
+    ];
+
+    const mockServer = {
+        id: 10,
+        name: 'Dev server',
+        description: 'A test workspace',
+        created_by: 1,
+        created_at: '',
+        member_count: 1,
+        role: 'OWNER',
+        active_competition: null,
+    };
+
+    beforeEach(() => {
+        vi.mocked(apiService.getServers).mockResolvedValue([mockServer]);
+        vi.mocked(apiService.getLeaderboard).mockResolvedValue(mockLeaderboardEntries);
+    });
+
+    afterEach(() => {
+        localStorage.clear();
+        vi.clearAllMocks();
+    });
+
+    it('renders leaderboard table', async () => {
+        renderWithRouter(<Leaderboard />);
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+            expect(screen.getByText('alice')).toBeInTheDocument();
+            expect(screen.getByText('demo')).toBeInTheDocument();
+            expect(screen.getByText('200')).toBeInTheDocument();
+        });
+    });
+
+    it('filters by server', async () => {
+        renderWithRouter(<Leaderboard />);
+        await waitFor(() => screen.getByRole('combobox'));
+        await userEvent.selectOptions(screen.getByRole('combobox'), '10');
+
+        await waitFor(() => {
+            expect(apiService.getLeaderboard).toHaveBeenCalledWith(undefined, 10);
+        });
+    });
+
+    it('filters by region', async () => {
+        renderWithRouter(<Leaderboard />);
+        await waitFor(() => screen.getByPlaceholderText(/Filter by region/i));
+        await userEvent.type(screen.getByPlaceholderText(/Filter by region/i), 'FL');
+
+        await waitFor(() => {
+            expect(apiService.getLeaderboard).toHaveBeenCalledWith('FL', undefined);
+        });
+    });
+});
+
+describe('Schedule page', () => {
+    const mockTask = {
+        id: 101,
+        title: 'Finish biology notes',
+        description: 'Read chapter 4 and summarize',
+        priority: 'MEDIUM' as const,
+        points_value: 15,
+        is_completed: false,
+        completed_at: null,
+        created_at: '',
+        updated_at: '',
+        due_date: '2026-04-04',
+        server: null,
+        recurrence: 'NONE' as const,
+    };
+
+    beforeEach(() => {
+        vi.mocked(apiService.getTasks).mockResolvedValue([mockTask]);
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('renders calendar with tasks', async () => {
+        renderWithRouter(<Schedule />);
+        await waitFor(() => {
+            expect(screen.getByText('📅 Schedule')).toBeInTheDocument();
+            expect(screen.getByText('April 2026')).toBeInTheDocument();
+            expect(screen.getByText('Finish biology notes')).toBeInTheDocument();
+        });
+    });
+
+    it('navigates to previous month', async () => {
+        renderWithRouter(<Schedule />);
+        await waitFor(() => screen.getByRole('button', { name: /← Prev/i }));
+        await userEvent.click(screen.getByRole('button', { name: /← Prev/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('March 2026')).toBeInTheDocument();
+        });
+    });
+
+    it('navigates to next month', async () => {
+        renderWithRouter(<Schedule />);
+        await waitFor(() => screen.getByRole('button', { name: /Next →/i }));
+        await userEvent.click(screen.getByRole('button', { name: /Next →/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('May 2026')).toBeInTheDocument();
+        });
+    });
+});
+
 describe('apiService auth redirect', () => {
     it('redirects to /login and clears storage on 401', async () => {
         localStorage.setItem('user', 'somebody');
@@ -405,3 +636,4 @@ describe('apiService auth redirect', () => {
         vi.unstubAllGlobals();
     });
 });
+
