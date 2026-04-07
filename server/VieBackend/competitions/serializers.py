@@ -6,9 +6,12 @@ from django.contrib.auth.models import User
 class CompetitionTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompetitionTask
-        fields = ['id', 'title', 'description', 'points_value', 'challenger_completed',
-                  'opponent_completed', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = ['id', 'title', 'description', 'difficulty', 'points_value', 'score_reason',
+                  'challenger_completed', 'challenger_completed_at', 'opponent_completed',
+                  'opponent_completed_at', 'created_at']
+        read_only_fields = ['id', 'points_value', 'score_reason', 'challenger_completed',
+                            'challenger_completed_at', 'opponent_completed',
+                            'opponent_completed_at', 'created_at']
 
 
 class CompetitionSerializer(serializers.ModelSerializer):

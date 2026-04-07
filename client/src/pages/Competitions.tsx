@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -17,8 +18,9 @@ export default function Competitions() {
     const [servers, setServers] = useState<VieServer[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<number | undefined>(undefined);
     const [showAddTask, setShowAddTask] = useState(false);
-    const [newTask, setNewTask] = useState({ title: '', description: '', points_value: 10 });
+    const [newTask, setNewTask] = useState({ title: '', description: '', difficulty: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH' });
     const { isDarkMode, toggleTheme } = useAppTheme();
+    const toast = useToast();
 
     // ─── Refs to avoid stale closures in WebSocket callbacks ──────────────────
     // Keeping a ref to the latest selectedServerId ensures the WebSocket
@@ -159,7 +161,7 @@ export default function Competitions() {
     const handleCreateCompetition = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedOpponent) {
-            alert('Please select an opponent from the search results.');
+            toast.info('Please select an opponent from the search results.');
             return;
         }
         try {
@@ -169,9 +171,9 @@ export default function Competitions() {
             setOpponentResults([]);
             setSelectedOpponent(null);
             await loadCompetitions();
-            alert('Competition created! Waiting for opponent to accept.');
+            toast.success('Competition created. Waiting for your opponent to accept.');
         } catch (error) {
-            alert('Failed to create competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to create competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -179,9 +181,9 @@ export default function Competitions() {
         try {
             await apiService.acceptCompetition(id);
             await loadCompetitions();
-            alert('Competition accepted! Let the games begin!');
+            toast.success('Competition accepted. Let the games begin.');
         } catch (error) {
-            alert('Failed to accept competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to accept competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -207,7 +209,7 @@ export default function Competitions() {
                 }));
             }
         } catch (error) {
-            alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -218,7 +220,7 @@ export default function Competitions() {
             await apiService.deleteCompetition(id);
             await loadCompetitions();
         } catch (error) {
-            alert('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to delete competition: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -226,7 +228,7 @@ export default function Competitions() {
         e.preventDefault();
         if (!selectedCompetition) return;
         if (!newTask.title.trim()) {
-            alert('Please enter a task title.');
+            toast.info('Please enter a task title.');
             return;
         }
         try {
@@ -235,11 +237,21 @@ export default function Competitions() {
             setCompetitions(prev =>
                 prev.map(c => c.id === result.competition.id ? result.competition : c)
             );
-            setNewTask({ title: '', description: '', points_value: 10 });
+            setNewTask({ title: '', description: '', difficulty: 'MEDIUM' });
             setShowAddTask(false);
         } catch (error) {
-            alert('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to add task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
+    };
+
+    const openCompetitionDetail = (competition: Competition, openTaskForm = false) => {
+        setSelectedCompetition(competition);
+        setShowAddTask(openTaskForm);
+    };
+
+    const getGoalProgress = (score: number, goal?: number | null) => {
+        if (!goal || goal <= 0) return 0;
+        return Math.min(100, (score / goal) * 100);
     };
 
     return (
@@ -247,7 +259,17 @@ export default function Competitions() {
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h1><i className="fa-solid fa-swords" style={{ marginRight: '10px' }} />Competitions</h1>
-                <div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select
+                        value={selectedServerId || ''}
+                        onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
+                        style={{ padding: '8px' }}
+                    >
+                        <option value="">All Servers</option>
+                        {servers.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                    </select>
                     <button onClick={() => setShowCreate(!showCreate)} style={{ marginRight: '10px' }}>
                         {showCreate ? 'Cancel' : 'New Competition'}
                     </button>
@@ -330,24 +352,13 @@ export default function Competitions() {
                 </form>
             )}
 
-            <div className="page-section page-section-tight" style={{ marginBottom: '20px' }}>
-                <select
-                    value={selectedServerId || ''}
-                    onChange={(e) => setSelectedServerId(e.target.value ? Number(e.target.value) : undefined)}
-                    style={{ padding: '8px' }}
-                >
-                    <option value="">All Servers</option>
-                    {servers.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                </select>
-            </div>
-
             {selectedCompetition ? (
                 <div>
-                    <button onClick={() => setSelectedCompetition(null)} style={{ marginBottom: '10px' }}>
-                        ← Back to List
-                    </button>
+                    <div className="page-section-tight" style={{ width: 'min(100%, 1400px)', margin: '0 auto 10px', boxSizing: 'border-box' }}>
+                        <button onClick={() => setSelectedCompetition(null)}>
+                            ← Back to List
+                        </button>
+                    </div>
                     <div className="page-section" style={{
                         background: 'var(--app-surface)',
                         border: '2px solid #4CAF50',
@@ -454,14 +465,19 @@ export default function Competitions() {
                                     style={{ padding: '8px', width: '100%', marginBottom: '8px', boxSizing: 'border-box' }}
                                 />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <label>Points:</label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={newTask.points_value}
-                                        onChange={(e) => setNewTask({ ...newTask, points_value: Number(e.target.value) })}
-                                        style={{ padding: '8px', width: '80px' }}
-                                    />
+                                    <label>Difficulty:</label>
+                                    <select
+                                        value={newTask.difficulty}
+                                        onChange={(e) => setNewTask({ ...newTask, difficulty: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
+                                        style={{ padding: '8px' }}
+                                    >
+                                        <option value="LOW">Low</option>
+                                        <option value="MEDIUM">Medium</option>
+                                        <option value="HIGH">High</option>
+                                    </select>
+                                    <span style={{ color: 'var(--app-text-muted)', fontSize: '13px' }}>
+                                        Points are assigned automatically from difficulty.
+                                    </span>
                                     <button type="submit" style={{
                                         padding: '8px 16px',
                                         background: '#4CAF50',
@@ -513,99 +529,153 @@ export default function Competitions() {
                 </div>
             ) : (
                 <div>
-                    <h2>Active Competitions</h2>
-                    {competitions.filter(c => c.status === 'ACTIVE').length > 0 ? (
-                        competitions.filter(c => c.status === 'ACTIVE').map(competition => (
-                            <div key={competition.id} className="page-section page-section-tight" style={{
-                                background: 'var(--app-surface)',
-                                border: '2px solid #4CAF50',
-                                padding: '15px',
-                                borderRadius: '8px',
-                                marginBottom: '10px',
-                                cursor: 'pointer'
-                            }} onClick={() => setSelectedCompetition(competition)}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteCompetition(competition.id); }} style={{
-                                        background: '#ff4444', color: 'white', border: 'none',
-                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
-                                    }}>Delete</button>
-                                </div>
-                                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
-                                    <span>{competition.challenger_username}: {competition.challenger_score}</span>
-                                    <span>{competition.opponent_username}: {competition.opponent_score}</span>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p>No active competitions.</p>
-                    )}
+                    <div className="page-section">
+                        <h2 style={{ marginTop: 0 }}>Active Competitions</h2>
+                        {competitions.filter(c => c.status === 'ACTIVE').length > 0 ? (
+                            competitions.filter(c => c.status === 'ACTIVE').map(competition => (
+                                <div key={competition.id} className="page-section-tight" style={{
+                                    background: 'var(--app-surface)',
+                                    border: '2px solid #4CAF50',
+                                    padding: '18px',
+                                    borderRadius: '8px',
+                                    marginBottom: '10px',
+                                    display: 'grid',
+                                    gap: '14px'
+                                }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto minmax(0, 1fr)', gap: '12px', alignItems: 'center' }}>
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline', marginBottom: '6px' }}>
+                                                <strong style={{ fontSize: '16px' }}>{competition.challenger_username}</strong>
+                                                <strong style={{ fontSize: '14px' }}>{competition.challenger_score} pts</strong>
+                                            </div>
+                                            <div style={{ background: 'rgba(11, 13, 15, 0.08)', borderRadius: '999px', height: '10px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${competition.points_goal ? getGoalProgress(competition.challenger_score, competition.points_goal) : 100}%`,
+                                                    background: 'linear-gradient(90deg, #4CAF50, #7AD97A)',
+                                                    height: '100%',
+                                                    borderRadius: 'inherit'
+                                                }} />
+                                            </div>
+                                        </div>
 
-                    <h2 style={{ marginTop: '30px' }}>Pending Invitations</h2>
-                    {competitions.filter(c => c.status === 'PENDING').length > 0 ? (
-                        competitions.filter(c => c.status === 'PENDING').map(competition => (
-                            <div key={competition.id} className="page-section page-section-tight" style={{
-                                background: 'var(--app-surface)',
-                                border: '2px solid #FFA500',
-                                padding: '15px',
-                                borderRadius: '8px',
-                                marginBottom: '10px'
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
-                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
-                                        background: '#ff4444', color: 'white', border: 'none',
-                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
-                                    }}>Delete</button>
-                                </div>
-                                <button onClick={() => handleAcceptCompetition(competition.id)} style={{ marginTop: '8px' }}>
-                                    Accept Competition
-                                </button>
-                            </div>
-                        ))
-                    ) : (
-                        <p>No pending invitations.</p>
-                    )}
+                                        <div style={{ display: 'grid', placeItems: 'center', minWidth: '56px', gap: '4px' }}>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--app-text-muted)' }}>VS</span>
+                                            <i className="fa-solid fa-bullseye" aria-hidden="true" style={{ color: '#e67e22', fontSize: '18px' }} />
+                                        </div>
 
-                    <h2 style={{ marginTop: '30px' }}>Completed Competitions</h2>
-                    {competitions.filter(c => c.status === 'COMPLETED').length > 0 ? (
-                        competitions.filter(c => c.status === 'COMPLETED').map(competition => (
-                            <div key={competition.id} className="page-section page-section-tight" style={{
-                                background: 'var(--app-surface)',
-                                border: '2px solid #888',
-                                padding: '15px',
-                                borderRadius: '8px',
-                                marginBottom: '10px'
-                            }}>
-                                <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
-                                    <button onClick={() => handleDeleteCompetition(competition.id)} style={{
-                                        background: '#ff4444', color: 'white', border: 'none',
-                                        borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
-                                    }}>Delete</button>
-                                </div>
-                                {competition.winner_username && (
-                                    <div style={{
-                                        background: '#fff8e1',
-                                        border: '1px solid #FFD700',
-                                        borderRadius: '6px',
-                                        padding: '6px 12px',
-                                        margin: '8px 0',
-                                        fontWeight: 'bold',
-                                        color: '#b8860b'
-                                    }}>
-                                        <i className="fa-solid fa-trophy" style={{ marginRight: '6px', color: '#FFD700' }} />Winner: {competition.winner_username}
+                                        <div style={{ minWidth: 0 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'baseline', marginBottom: '6px' }}>
+                                                <strong style={{ fontSize: '14px' }}>{competition.opponent_score} pts</strong>
+                                                <strong style={{ fontSize: '16px' }}>{competition.opponent_username}</strong>
+                                            </div>
+                                            <div style={{ background: 'rgba(11, 13, 15, 0.08)', borderRadius: '999px', height: '10px', overflow: 'hidden', display: 'flex', justifyContent: 'flex-end' }}>
+                                                <div style={{
+                                                    width: `${competition.points_goal ? getGoalProgress(competition.opponent_score, competition.points_goal) : 100}%`,
+                                                    background: 'linear-gradient(90deg, #2196F3, #6EC1FF)',
+                                                    height: '100%',
+                                                    borderRadius: 'inherit'
+                                                }} />
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
-                                    <span>{competition.challenger_username}: {competition.challenger_score}</span>
-                                    <span>{competition.opponent_username}: {competition.opponent_score}</span>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                        <span style={{ color: 'var(--app-text-muted)', fontSize: '13px' }}>
+                                            {competition.points_goal
+                                                ? `${Math.max(competition.points_goal - Math.max(competition.challenger_score, competition.opponent_score), 0)} pts to win`
+                                                : 'Open score challenge'} • {competition.tasks?.length ?? 0} tasks
+                                        </span>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            <button onClick={() => openCompetitionDetail(competition, false)}>
+                                                View Tasks
+                                            </button>
+                                            <button onClick={() => openCompetitionDetail(competition, true)}>
+                                                + Add Task
+                                            </button>
+                                            <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                                background: '#ff4444', color: 'white', border: 'none',
+                                                borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                            }}>
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p>No completed competitions.</p>
-                    )}
+                            ))
+                        ) : (
+                            <p>No active competitions.</p>
+                        )}
+                    </div>
+
+                    <div className="page-section">
+                        <h2 style={{ marginTop: 0 }}>Pending Invitations</h2>
+                        {competitions.filter(c => c.status === 'PENDING').length > 0 ? (
+                            competitions.filter(c => c.status === 'PENDING').map(competition => (
+                                <div key={competition.id} className="page-section-tight" style={{
+                                    background: 'var(--app-surface)',
+                                    border: '2px solid #FFA500',
+                                    padding: '15px',
+                                    borderRadius: '8px',
+                                    marginBottom: '10px'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <h3 style={{ margin: 0 }}>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                        <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                            background: '#ff4444', color: 'white', border: 'none',
+                                            borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                        }}>Delete</button>
+                                    </div>
+                                    <button onClick={() => handleAcceptCompetition(competition.id)} style={{ marginTop: '8px' }}>
+                                        Accept Competition
+                                    </button>
+                                </div>
+                            ))
+                        ) : (
+                            <p>No pending invitations.</p>
+                        )}
+                    </div>
+
+                    <div className="page-section">
+                        <h2 style={{ marginTop: 0 }}>Completed Competitions</h2>
+                        {competitions.filter(c => c.status === 'COMPLETED').length > 0 ? (
+                            competitions.filter(c => c.status === 'COMPLETED').map(competition => (
+                                <div key={competition.id} className="page-section-tight" style={{
+                                    background: 'var(--app-surface)',
+                                    border: '2px solid #888',
+                                    padding: '15px',
+                                    borderRadius: '8px',
+                                    marginBottom: '10px'
+                                }}>
+                                    <h3>{competition.challenger_username} vs {competition.opponent_username}</h3>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '6px' }}>
+                                        <button onClick={() => handleDeleteCompetition(competition.id)} style={{
+                                            background: '#ff4444', color: 'white', border: 'none',
+                                            borderRadius: '6px', padding: '4px 10px', cursor: 'pointer', fontSize: '12px'
+                                        }}>Delete</button>
+                                    </div>
+                                    {competition.winner_username && (
+                                        <div style={{
+                                            background: '#fff8e1',
+                                            border: '1px solid #FFD700',
+                                            borderRadius: '6px',
+                                            padding: '6px 12px',
+                                            margin: '8px 0',
+                                            fontWeight: 'bold',
+                                            color: '#b8860b'
+                                        }}>
+                                            <i className="fa-solid fa-trophy" style={{ marginRight: '6px', color: '#FFD700' }} />Winner: {competition.winner_username}
+                                        </div>
+                                    )}
+                                    <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px' }}>
+                                        <span>{competition.challenger_username}: {competition.challenger_score}</span>
+                                        <span>{competition.opponent_username}: {competition.opponent_score}</span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p>No completed competitions.</p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

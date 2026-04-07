@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import '../LoginPage.css';
 import { useAppTheme } from '../hooks/useAppTheme';
+import { useToast } from '../components/ToastProvider';
 
 export default function Register() {
     const [formData, setFormData] = useState({
@@ -16,6 +17,7 @@ export default function Register() {
     const [error, setError] = useState('');
     const navigate = useNavigate();
     const { isDarkMode, toggleTheme } = useAppTheme();
+    const toast = useToast();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -30,7 +32,7 @@ export default function Register() {
 
         try {
             await apiService.register(formData);
-            alert('Registration successful! Please login.');
+            toast.success('Registration successful. Please sign in.');
             navigate('/login');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Registration failed');
@@ -42,7 +44,7 @@ export default function Register() {
             {/* Theme toggle — top-right corner, consistent with protected pages */}
             <button
                 type="button"
-                className="theme-icon-btn login-theme-btn"
+                className="theme-icon-btn login-theme-btn liquid-glass auth-fade-rise auth-fade-rise-delay-2"
                 onClick={toggleTheme}
                 aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
                 title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -51,12 +53,12 @@ export default function Register() {
                 {isDarkMode ? '☀' : '☾'}
             </button>
 
-            <Link className="ghost-btn login-back" to="/">
+            <Link className="ghost-btn login-back liquid-glass auth-fade-rise-delay" to="/">
                 <i className="fa-solid fa-arrow-left" />
                 Back to main page
             </Link>
 
-            <section className="login-shell">
+            <section className="login-shell liquid-glass auth-fade-rise">
                 <div className="login-brand">
                     <span className="brand-mark">V</span>
                     <div>

@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import date
 
+from .scoring import base_points_for_difficulty
+
 class Task(models.Model):
     PRIORITY_CHOICES = [
         ('LOW', 'Low'),
@@ -22,6 +24,8 @@ class Task(models.Model):
     description = models.TextField(blank=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     points_value = models.IntegerField(default=10)
+    awarded_points = models.IntegerField(null=True, blank=True)
+    score_reason = models.CharField(max_length=64, blank=True)
     is_completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -31,16 +35,25 @@ class Task(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
+
+    def assigned_points_value(self):
+        return base_points_for_difficulty(self.priority)
+
+    def sync_points_value(self):
+        self.points_value = self.assigned_points_value()
     
-    def complete_task(self):
+    def complete_task(self, awarded_points=None, score_reason=''):
         if not self.is_completed:
+            self.sync_points_value()
             self.is_completed = True
             self.completed_at = timezone.now()
+            self.awarded_points = awarded_points if awarded_points is not None else self.points_value
+            self.score_reason = score_reason
             self.save()
             
             # Award points to user
             profile = self.user.profile
-            profile.points += self.points_value
+            profile.points += self.awarded_points
             
             # Update streak
             today = date.today()
@@ -62,6 +75,22 @@ class Task(models.Model):
             profile.last_task_completed_date = today
             profile.save()
 
+            from users.progress import record_personal_task_completion
+            from users.progress import record_daily_task_completion
+            record_personal_task_completion(
+                user=self.user,
+                difficulty=self.priority,
+                awarded_points=self.awarded_points,
+                score_reason=self.score_reason,
+                completed_at=self.completed_at,
+            )
+            record_daily_task_completion(
+                user=self.user,
+                difficulty=self.priority,
+                score_reason=self.score_reason,
+                completed_at=self.completed_at,
+            )
+
             # Handle recurring tasks - create next occurrence
             if self.recurrence != 'NONE' and self.due_date:
                 from datetime import timedelta
@@ -79,7 +108,7 @@ class Task(models.Model):
                         title=self.title,
                         description=self.description,
                         priority=self.priority,
-                        points_value=self.points_value,
+                        points_value=self.assigned_points_value(),
                         due_date=next_due,
                         recurrence=self.recurrence,
                     )

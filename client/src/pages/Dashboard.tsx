@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CSSProperties } from 'react';
+import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
 import type {
@@ -14,20 +15,45 @@ import type {
   VieServer,
 } from '../services/api';
 
-const CONFETTI_PIECES = Array.from({ length: 18 }, (_, index) => ({
-  id: index,
-  left: `${6 + (index % 6) * 16}%`,
-  delay: `${(index % 6) * 0.12}s`,
-  duration: `${2.8 + (index % 5) * 0.25}s`,
-  rotation: `${(index % 2 === 0 ? 1 : -1) * (18 + index * 6)}deg`,
-}));
+const fireCelebrationConfetti = () => {
+  if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
 
-const getConfettiStyle = (piece: (typeof CONFETTI_PIECES)[number]): CSSProperties & Record<'--confetti-rotate', string> => ({
-  left: piece.left,
-  animationDelay: piece.delay,
-  animationDuration: piece.duration,
-  '--confetti-rotate': piece.rotation,
-});
+  const shared = {
+    zIndex: 80,
+    ticks: 220,
+    gravity: 0.9,
+    startVelocity: 34,
+    scalar: 0.96,
+    disableForReducedMotion: true,
+    colors: ['#23526f', '#b15a27', '#673610', '#f5d2b7', '#fcf284', '#dce9f6'],
+  };
+
+  void confetti({
+    ...shared,
+    particleCount: 30,
+    spread: 78,
+    angle: 90,
+    origin: { x: 0.5, y: 0.12 },
+  });
+
+  void confetti({
+    ...shared,
+    particleCount: 18,
+    spread: 56,
+    angle: 62,
+    origin: { x: 0.2, y: 0.1 },
+  });
+
+  void confetti({
+    ...shared,
+    particleCount: 18,
+    spread: 56,
+    angle: 118,
+    origin: { x: 0.8, y: 0.1 },
+  });
+};
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -46,7 +72,6 @@ export default function Dashboard() {
     title: '',
     description: '',
     priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
-    points_value: 10,
     due_date: '',
     recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY',
   });
@@ -57,6 +82,7 @@ export default function Dashboard() {
   const [celebration, setCelebration] = useState<CelebrationPayload | null>(null);
   const { isDarkMode, toggleTheme } = useAppTheme();
   const navigate = useNavigate();
+  const toast = useToast();
 
   const loadTasks = async (serverId?: number) => {
     try {
@@ -120,6 +146,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!celebration) return;
+    fireCelebrationConfetti();
     const timer = window.setTimeout(() => setCelebration(null), 4800);
     return () => window.clearTimeout(timer);
   }, [celebration]);
@@ -150,7 +177,7 @@ export default function Dashboard() {
       setNewServerName('');
       setNewServerDesc('');
     } catch (error) {
-      alert(`Failed to create server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to create server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -182,7 +209,7 @@ export default function Dashboard() {
       setJoinServerQuery('');
       setJoinServerResults([]);
     } catch (error) {
-      alert(`Failed to join server: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to join server: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -192,7 +219,6 @@ export default function Dashboard() {
       const task = await apiService.createTask({
         ...newTask,
         server: selectedServer?.id || null,
-        points_value: Number(newTask.points_value) || 10,
       });
       setTasks((prev) => [task, ...prev]);
       setShowAddTask(false);
@@ -200,12 +226,11 @@ export default function Dashboard() {
         title: '',
         description: '',
         priority: 'MEDIUM',
-        points_value: 10,
         due_date: '',
         recurrence: 'NONE',
       });
     } catch (error) {
-      alert(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to create task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -222,7 +247,7 @@ export default function Dashboard() {
         refreshMotivation(),
       ]);
     } catch (error) {
-      alert(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to complete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -232,7 +257,7 @@ export default function Dashboard() {
       await apiService.deleteTask(taskId);
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     } catch (error) {
-      alert(`Failed to delete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to delete task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -244,27 +269,22 @@ export default function Dashboard() {
         title: editingTask.title,
         description: editingTask.description,
         priority: editingTask.priority,
-        points_value: editingTask.points_value,
         due_date: editingTask.due_date,
         recurrence: editingTask.recurrence,
       });
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       setEditingTask(null);
     } catch (error) {
-      alert(`Failed to update task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to update task: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const pointsToday = useMemo(
-    () =>
-      tasks
-        .filter((task) => task.is_completed)
-        .reduce((sum, task) => sum + (task.points_value || 0), 0),
-    [tasks]
-  );
-  const currentPoints = user?.profile.points ?? 0;
-  const nextTier = Math.max(600, Math.ceil((currentPoints + 1) / 500) * 500);
-  const progress = Math.min((pointsToday / nextTier) * 100, 100);
+  const weeklyProgress = user?.profile.weekly_progress;
+  const weeklyCompetitivePoints = weeklyProgress?.competitive_points ?? 0;
+  const weeklyPersonalPoints = weeklyProgress?.personal_points ?? 0;
+  const weeklyGoalPoints = weeklyProgress?.weekly_goal_points ?? user?.profile.default_weekly_goal_points ?? 120;
+  const weeklyPointsRemaining = weeklyProgress?.competitive_points_remaining ?? Math.max(weeklyGoalPoints - weeklyCompetitivePoints, 0);
+  const progress = Math.min((weeklyCompetitivePoints / weeklyGoalPoints) * 100, 100);
   const priorityCounts = useMemo(
     () => ({
       high: tasks.filter((t) => t.priority === 'HIGH').length,
@@ -301,62 +321,15 @@ export default function Dashboard() {
     <div className={`dashboard ${isDarkMode ? 'dashboard-dark' : ''}`}>
       <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
 
-      <section className="dashboard-topbar">
-        <div className="brand">
-          <div>
-            <p className="brand-name">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}, {user?.first_name || user?.username || 'there'}</p>
-            <p className="brand-tag">Ready to stack points and keep the streak alive.</p>
-          </div>
-        </div>
-        <div className="header-actions">
-          <div style={{ position: 'relative' }}>
-            <button className="secondary-btn" onClick={() => setShowServerDropdown((v) => !v)}>
-              <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{selectedServer?.name || 'Select Server'}
-            </button>
-            {showServerDropdown && (
-              <div className="leaderboard-card" style={{ position: 'absolute', top: '110%', left: 0, minWidth: 260, zIndex: 30 }}>
-                {servers.map((server) => (
-                  <button
-                    key={server.id}
-                    className="ghost-btn full-width"
-                    onClick={() => handleSelectServer(server)}
-                    style={{ justifyContent: 'space-between', marginBottom: 6 }}
-                  >
-                    <span>{server.name}</span>
-                    {selectedServer?.id === server.id ? '✓' : ''}
-                  </button>
-                ))}
-                <button className="ghost-btn full-width" onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}>
-                  + Create Server
-                </button>
-                <button className="ghost-btn full-width" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
-                  <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }} /> Join Server
-                </button>
-              </div>
-            )}
-          </div>
-          <button className="primary-btn" onClick={() => setShowAddTask(true)}>
-            Quick add task
-            <i className="fa-solid fa-circle-plus" />
-          </button>
-        </div>
-      </section>
-
       {celebration && (
-        <div className="celebration-overlay" aria-live="polite">
-          <div className="screen-confetti" aria-hidden="true">
-            {CONFETTI_PIECES.map((piece) => (
-              <span
-                key={piece.id}
-                className="confetti-piece screen-piece"
-                style={getConfettiStyle(piece)}
-              />
-            ))}
-          </div>
+        <div className="celebration-overlay celebration-banner-layer" aria-live="polite">
           <div className="celebration-popup">
             <p className="panel-kicker">Keep it up</p>
             <h2>{celebration.headline}</h2>
             <p>{celebration.phrase}</p>
+            {celebration.limit_note && (
+              <p className="celebration-note">{celebration.limit_note}</p>
+            )}
             <div className="celebration-stats">
               <strong>+{celebration.points_earned} pts</strong>
               <span>{celebration.current_streak} day streak</span>
@@ -366,105 +339,133 @@ export default function Dashboard() {
       )}
 
       <main className="dash-main">
-        <section className="panel tasks-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Today</p>
-              <h2>Today&apos;s tasks</h2>
-              <p className="panel-subtitle">Keep momentum with points, streaks, and friendly competition.</p>
+        <section className="dashboard-context">
+          <div className="panel welcome-panel">
+            <p className="panel-kicker">Welcome back</p>
+            <h2>
+              <span className="welcome-greeting">
+                Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}
+              </span>
+              <span className="welcome-name">{user?.first_name || user?.username || 'there'}</span>
+            </h2>
+            <p className="panel-subtitle">Reach the weekly finish line and keep the streak alive.</p>
+          </div>
+          <div className="context-side">
+            <div className="motivation-card">
+              <div className="panel-head compact">
+                <div>
+                  <p className="panel-kicker">Quote bank</p>
+                  <h2>Today&apos;s push</h2>
+                  <p className="panel-subtitle">A short reminder to keep the pace up today.</p>
+                </div>
+                <button className="ghost-btn" onClick={refreshMotivation}>Refresh quote</button>
+              </div>
+              {motivation ? (
+                <div className="motivation-body">
+                  <p className="motivation-quote">&ldquo;{motivation.quote}&rdquo;</p>
+                  <div className="motivation-meta">
+                    <strong>{motivation.author}</strong>
+                    <span>{motivation.tone}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="panel-subtitle">Loading a fresh reminder...</p>
+              )}
             </div>
-          </div>
 
-          <div className="category-row">
-            <div className="category-pill"><span>High priority</span><strong>{priorityCounts.high}</strong></div>
-            <div className="category-pill"><span>Medium priority</span><strong>{priorityCounts.medium}</strong></div>
-            <div className="category-pill"><span>Low priority</span><strong>{priorityCounts.low}</strong></div>
-          </div>
-
-          <div className="tasks-list">
-            {tasks.length === 0 && <p className="panel-subtitle">No tasks yet. Add your first task.</p>}
-            {tasks.map((task) => (
-              <article key={task.id} className={`task-card ${task.is_completed ? 'done' : ''}`}>
-                <button
-                  className="check-btn"
-                  onClick={() => handleCompleteTask(task.id)}
-                  aria-label={`Mark ${task.title} complete`}
-                  disabled={task.is_completed}
-                >
-                  {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
-                </button>
-                <div className="task-main">
-                  <div className="task-title">
-                    <h3>{task.title}</h3>
-                    <span className={tagClassForPriority(task.priority)}>{task.priority}</span>
-                  </div>
-                  {task.description && <p className="task-notes">{task.description}</p>}
-                  <div className="task-meta">
-                    <span><i className="fa-solid fa-star" /> {task.points_value} pts</span>
-                    {task.due_date && <span><i className="fa-solid fa-clock" /> Due {task.due_date}</span>}
-                    {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
-                  </div>
+            <div className="stats-grid context-stats">
+              <div className="stat-card">
+                <p className="panel-kicker">Weekly finish line</p>
+                <h3>{weeklyCompetitivePoints} / {weeklyGoalPoints}</h3>
+                <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
+                <p className="panel-subtitle">
+                  {weeklyProgress?.goal_reached
+                    ? 'Finish line reached. Keep going for a new personal best.'
+                    : `${weeklyPointsRemaining} points to reach this week's goal.`}
+                </p>
+              </div>
+              <div className="stat-card">
+                <p className="panel-kicker">Current streak</p>
+                <h3>{user?.profile.current_streak ?? 0} days</h3>
+                <p className="panel-subtitle">
+                  {weeklyPersonalPoints} personal pts this week. Best week: {user?.profile.best_weekly_personal_points ?? 0}.
+                </p>
+                <div className="streak-strip">
+                  {Array.from({ length: 7 }).map((_, idx) => (
+                    <span key={idx} className={idx < Math.min((user?.profile.current_streak ?? 0), 7) ? 'active' : ''} />
+                  ))}
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {!task.is_completed && (
-                    <button className="edit-btn" onClick={() => setEditingTask(task)}>
-                      Edit
-                      <i className="fa-solid fa-sliders" />
-                    </button>
-                  )}
-                  <button className="ghost-btn" onClick={() => handleDeleteTask(task.id)}>Delete</button>
-                </div>
-              </article>
-            ))}
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="panel insight-panel">
-          <div className="motivation-card">
+        <section className="dashboard-work-row">
+          <section className="panel tasks-panel">
+            <div className="panel-head">
+              <div>
+                <p className="panel-kicker">Today</p>
+                <h2>Today&apos;s tasks</h2>
+                <p className="panel-subtitle">Your main focus area for today. Add, finish, and manage tasks here.</p>
+              </div>
+              <div className="header-actions tasks-panel-actions">
+                <button className="primary-btn" onClick={() => setShowAddTask(true)}>
+                  Quick add task
+                  <i className="fa-solid fa-circle-plus" />
+                </button>
+              </div>
+            </div>
+
+            <div className="category-row">
+              <div className="category-pill"><span>High difficulty</span><strong>{priorityCounts.high}</strong></div>
+              <div className="category-pill"><span>Medium difficulty</span><strong>{priorityCounts.medium}</strong></div>
+              <div className="category-pill"><span>Low difficulty</span><strong>{priorityCounts.low}</strong></div>
+            </div>
+
+            <div className="tasks-list">
+              {tasks.length === 0 && <p className="panel-subtitle">No tasks yet. Add your first task.</p>}
+              {tasks.map((task) => (
+                <article key={task.id} className={`task-card ${task.is_completed ? 'done' : ''}`}>
+                  <button
+                    className="check-btn"
+                    onClick={() => handleCompleteTask(task.id)}
+                    aria-label={`Mark ${task.title} complete`}
+                    disabled={task.is_completed}
+                  >
+                    {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
+                  </button>
+                  <div className="task-main">
+                    <div className="task-title">
+                      <h3>{task.title}</h3>
+                      <span className={tagClassForPriority(task.priority)}>{task.priority}</span>
+                    </div>
+                    {task.description && <p className="task-notes">{task.description}</p>}
+                    <div className="task-meta">
+                      <span><i className="fa-solid fa-star" /> {task.awarded_points ?? task.points_value} pts</span>
+                      {task.due_date && <span><i className="fa-solid fa-clock" /> Due {task.due_date}</span>}
+                      {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {!task.is_completed && (
+                      <button className="edit-btn" onClick={() => setEditingTask(task)}>
+                        Edit
+                        <i className="fa-solid fa-sliders" />
+                      </button>
+                    )}
+                    <button className="ghost-btn" onClick={() => handleDeleteTask(task.id)}>Delete</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="leaderboard-card work-leaderboard-card">
             <div className="panel-head compact">
               <div>
-                <p className="panel-kicker">Quote bank</p>
-                <h2>Today&apos;s push</h2>
-              </div>
-              <button className="ghost-btn" onClick={refreshMotivation}>Refresh quote</button>
-            </div>
-            {motivation ? (
-              <div className="motivation-body">
-                <p className="motivation-quote">&ldquo;{motivation.quote}&rdquo;</p>
-                <div className="motivation-meta">
-                  <strong>{motivation.author}</strong>
-                  <span>{motivation.tone}</span>
-                </div>
-              </div>
-            ) : (
-              <p className="panel-subtitle">Loading a fresh reminder...</p>
-            )}
-          </div>
-
-          <div className="stats-grid">
-            <div className="stat-card">
-              <p className="panel-kicker">Points earned</p>
-              <h3>{user?.profile.points ?? 0}</h3>
-              <div className="progress"><div className="progress-bar" style={{ width: `${progress}%` }} /></div>
-              <p className="panel-subtitle">{Math.max(nextTier - pointsToday, 0)} points to next reward tier.</p>
-            </div>
-            <div className="stat-card">
-              <p className="panel-kicker">Current streak</p>
-              <h3>{user?.profile.current_streak ?? 0} days</h3>
-              <p className="panel-subtitle">Longest streak: {user?.profile.longest_streak ?? 0} days.</p>
-              <div className="streak-strip">
-                {Array.from({ length: 7 }).map((_, idx) => (
-                  <span key={idx} className={idx < Math.min((user?.profile.current_streak ?? 0), 7) ? 'active' : ''} />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="leaderboard-card">
-            <div className="panel-head compact">
-              <div>
-                <p className="panel-kicker">Task highlights</p>
-                <h2>Top tasks</h2>
+                <p className="panel-kicker">Leaderboard</p>
+                <h2>Server leaderboard preview</h2>
+                <p className="panel-subtitle">A quick look at the top standings for this server.</p>
               </div>
               <button className="ghost-btn" onClick={() => navigate('/leaderboard')}>View leaderboard</button>
             </div>
@@ -486,40 +487,84 @@ export default function Dashboard() {
           </div>
         </section>
 
-        <section className="panel challenge-panel">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">1v1 challenges</p>
-              <h2>Friendly competition</h2>
-              <p className="panel-subtitle">Match with a friend on a shared task and climb the points ladder.</p>
+        <section className="dashboard-competition-row">
+          <section className="panel challenge-panel">
+            <div className="panel-head">
+              <div>
+                <p className="panel-kicker">1v1 challenges</p>
+                <h2>Friendly competition</h2>
+                <p className="panel-subtitle">Match with a friend on a shared task and climb the points ladder.</p>
+              </div>
+              <div className="challenge-actions">
+                <button className="secondary-btn" onClick={() => navigate('/competitions')}>
+                  Start a 1v1 challenge
+                  <i className="fa-solid fa-crosshairs" />
+                </button>
+              </div>
             </div>
-            <div className="challenge-actions">
-              <button className="secondary-btn" onClick={() => navigate('/competitions')}>
-                Start a 1v1 challenge
-                <i className="fa-solid fa-crosshairs" />
-              </button>
-            </div>
-          </div>
-          <div className="challenge-cards">
-            {activeChallenges.length === 0 && (
-              <p className="panel-subtitle">No active challenges right now. Start one from Competitions.</p>
-            )}
-            {activeChallenges.map((challenge) => (
-              <article key={challenge.id} className="challenge-card">
-                <div className="challenge-head">
-                  <div>
-                    <p className="panel-kicker">Active</p>
-                    <h3>{challenge.task}</h3>
+            <div className="challenge-cards">
+              {activeChallenges.length === 0 && (
+                <p className="panel-subtitle">No active challenges right now. Start one from Competitions.</p>
+              )}
+              {activeChallenges.map((challenge) => (
+                <article key={challenge.id} className="challenge-card">
+                  <div className="challenge-row">
+                    <div className="challenge-summary">
+                      <h3>{challenge.task}</h3>
+                      <span className={`status-pill status-${challenge.status.toLowerCase()}`}>{challenge.status}</span>
+                    </div>
+                    <div className="challenge-players">
+                      <div><p>You</p><strong>{challenge.yourScore} pts</strong></div>
+                      <div><p>{challenge.opponent}</p><strong>{challenge.theirScore} pts</strong></div>
+                    </div>
+                    <button className="ghost-btn" onClick={() => navigate('/competitions')}>View matchup</button>
                   </div>
-                  <span className="status-pill">{challenge.status}</span>
-                </div>
-                <div className="challenge-players">
-                  <div><p>You</p><strong>{challenge.yourScore} pts</strong></div>
-                  <div><p>{challenge.opponent}</p><strong>{challenge.theirScore} pts</strong></div>
-                </div>
-                <button className="ghost-btn" onClick={() => navigate('/competitions')}>View matchup</button>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
+          </section>
+
+          <div className="panel workspace-panel">
+            <div className="panel-head compact">
+              <div>
+                <p className="panel-kicker">Workspace</p>
+                <h2>Server controls</h2>
+                <p className="panel-subtitle">Switch context or create a new server without interrupting the main task view.</p>
+              </div>
+            </div>
+            <div className="workspace-control-row">
+              <div style={{ position: 'relative' }}>
+                <button className="secondary-btn workspace-menu-btn" onClick={() => setShowServerDropdown((v) => !v)}>
+                  <span><i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{selectedServer?.name || 'Select Server'}</span>
+                  <i className={`fa-solid ${showServerDropdown ? 'fa-chevron-up' : 'fa-chevron-down'}`} />
+                </button>
+                {showServerDropdown && (
+                  <div className="workspace-dropdown leaderboard-card" style={{ position: 'absolute', top: '110%', left: 0, minWidth: 260, zIndex: 30 }}>
+                    <div className="workspace-dropdown-actions">
+                      <button className="ghost-btn workspace-action-btn" onClick={() => { setShowCreateServer(true); setShowServerDropdown(false); }}>
+                        + Create Server
+                      </button>
+                      <button className="ghost-btn workspace-action-btn" onClick={() => { setShowJoinServer(true); setShowServerDropdown(false); }}>
+                        <i className="fa-solid fa-magnifying-glass" style={{ marginRight: '6px' }} /> Join Server
+                      </button>
+                    </div>
+                    <div className="workspace-server-list">
+                      {servers.map((server) => (
+                        <button
+                          key={server.id}
+                          className="ghost-btn full-width workspace-server-option"
+                          onClick={() => handleSelectServer(server)}
+                          style={{ justifyContent: 'space-between', marginBottom: 6 }}
+                        >
+                          <span>{server.name}</span>
+                          {selectedServer?.id === server.id ? '✓' : ''}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -543,16 +588,14 @@ export default function Dashboard() {
               <label>Description
                 <textarea rows={3} placeholder="Add context" value={newTask.description} onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))} />
               </label>
-              <label>Priority
+              <label>Difficulty
                 <select value={newTask.priority} onChange={(e) => setNewTask((p) => ({ ...p, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' }))}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
                 </select>
               </label>
-              <label>Points
-                <input type="number" min="1" value={newTask.points_value} onChange={(e) => setNewTask((p) => ({ ...p, points_value: Number(e.target.value) || 1 }))} />
-              </label>
+              <p className="panel-subtitle" style={{ margin: 0 }}>Points are assigned automatically from difficulty.</p>
               <label>Due date
                 <input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} />
               </label>
@@ -591,16 +634,14 @@ export default function Dashboard() {
               <label>Description
                 <textarea rows={3} value={editingTask.description} onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })} />
               </label>
-              <label>Priority
+              <label>Difficulty
                 <select value={editingTask.priority} onChange={(e) => setEditingTask({ ...editingTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}>
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
                 </select>
               </label>
-              <label>Points
-                <input type="number" min="1" value={editingTask.points_value} onChange={(e) => setEditingTask({ ...editingTask, points_value: Number(e.target.value) || 1 })} />
-              </label>
+              <p className="panel-subtitle" style={{ margin: 0 }}>Points are assigned automatically from difficulty.</p>
               <div className="modal-actions">
                 <button type="button" className="ghost-btn" onClick={() => setEditingTask(null)}>Close</button>
                 <button type="submit" className="primary-btn">Save changes</button>

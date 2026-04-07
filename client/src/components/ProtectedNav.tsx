@@ -8,7 +8,8 @@ type ProtectedNavProps = {
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/overview', label: 'Overview' },
+  { to: '/overview', label: 'All Tasks' },
+  { to: '/progress', label: 'Progress' },
   { to: '/schedule', label: 'Schedule' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/competitions', label: 'Competitions' },
@@ -25,7 +26,7 @@ export default function ProtectedNav({ isDarkMode, onToggleTheme }: ProtectedNav
     } finally {
       localStorage.removeItem('user');
       localStorage.removeItem('selectedServerId');
-      navigate('/login');
+      navigate('/');
     }
   };
 

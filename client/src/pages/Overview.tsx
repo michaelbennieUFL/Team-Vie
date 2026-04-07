@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ProtectedNav from '../components/ProtectedNav';
+import { useToast } from '../components/ToastProvider';
 import { apiService } from '../services/api';
 import type { User, Task, VieServer } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
@@ -14,11 +15,11 @@ export default function Overview() {
         title: '',
         description: '',
         priority: 'MEDIUM' as 'LOW' | 'MEDIUM' | 'HIGH',
-        points_value: 10,
         due_date: '',
         recurrence: 'NONE' as 'NONE' | 'DAILY' | 'WEEKLY'
     });
     const { isDarkMode, toggleTheme } = useAppTheme();
+    const toast = useToast();
 
     const loadData = async () => {
         try {
@@ -57,26 +58,25 @@ export default function Overview() {
                 title: '',
                 description: '',
                 priority: 'MEDIUM',
-                points_value: 10,
                 due_date: '',
                 recurrence: 'NONE'
             });
             setSelectedServerId('');
         } catch (error) {
-            alert('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to create task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
     const handleCompleteTask = async (taskId: number) => {
         try {
             const response = await apiService.completeTask(taskId);
-            alert(`Task completed! You earned ${response.points_earned} points!`);
+            toast.success(`Task completed. You earned ${response.points_earned} points.`);
             const userData = await apiService.getCurrentUser();
             setUser(userData);
             const tasksData = await apiService.getTasks();
             setTasks(tasksData);
         } catch (error) {
-            alert('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            toast.error('Failed to complete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
     };
 
@@ -86,7 +86,7 @@ export default function Overview() {
                 await apiService.deleteTask(taskId);
                 setTasks(tasks.filter(t => t.id !== taskId));
             } catch (error) {
-                alert('Failed to delete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                toast.error('Failed to delete task: ' + (error instanceof Error ? error.message : 'Unknown error'));
             }
         }
     };
@@ -98,6 +98,10 @@ export default function Overview() {
         tasksByServer[name].push(task);
     });
 
+    Object.values(tasksByServer).forEach((serverTasks) => {
+        serverTasks.sort((a, b) => Number(a.is_completed) - Number(b.is_completed));
+    });
+
     const pendingTasks = tasks.filter(t => !t.is_completed);
     const completedTasks = tasks.filter(t => t.is_completed);
 
@@ -105,9 +109,9 @@ export default function Overview() {
         <div className={`vie-app-page ${isDarkMode ? 'theme-dark' : 'theme-light'}`} style={{ width: '100%', padding: '28px 5vw 48px' }}>
             <ProtectedNav isDarkMode={isDarkMode} onToggleTheme={toggleTheme} />
             <div className="page-section page-section-tight" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h1>📋 Overview — All Tasks</h1>
+                <h1>📋 All Tasks</h1>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => setShowAddTask(!showAddTask)}>
+                    <button className="primary-btn" onClick={() => setShowAddTask(!showAddTask)}>
                         {showAddTask ? 'Cancel' : '+ Add Task'}
                     </button>
                 </div>
@@ -152,18 +156,10 @@ export default function Overview() {
                             onChange={(e) => setNewTask({ ...newTask, priority: e.target.value as 'LOW' | 'MEDIUM' | 'HIGH' })}
                             style={{ padding: '8px' }}
                         >
-                            <option value="LOW">Low Priority</option>
-                            <option value="MEDIUM">Medium Priority</option>
-                            <option value="HIGH">High Priority</option>
+                            <option value="LOW">Low Difficulty</option>
+                            <option value="MEDIUM">Medium Difficulty</option>
+                            <option value="HIGH">High Difficulty</option>
                         </select>
-                        <input
-                            type="number"
-                            placeholder="Points"
-                            value={newTask.points_value}
-                            onChange={(e) => setNewTask({ ...newTask, points_value: parseInt(e.target.value) })}
-                            min="1"
-                            style={{ padding: '8px', width: '80px' }}
-                        />
                         <input
                             type="date"
                             value={newTask.due_date}
@@ -180,6 +176,9 @@ export default function Overview() {
                             <option value="WEEKLY">Weekly</option>
                         </select>
                     </div>
+                    <p style={{ margin: '0 0 12px', color: 'var(--app-text-muted)', fontSize: '13px' }}>
+                        Points are assigned automatically from difficulty.
+                    </p>
                     <button type="submit">Create Task</button>
                 </form>
             )}
@@ -204,7 +203,7 @@ export default function Overview() {
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h4>Completed</h4>
-                        <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#4CAF50' }}>{completedTasks.length}</p>
+                        <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#b15a27' }}>{completedTasks.length}</p>
                     </div>
                     <div style={{ textAlign: 'center' }}>
                         <h4>Points</h4>
@@ -219,7 +218,7 @@ export default function Overview() {
 
             {Object.entries(tasksByServer).map(([serverName, serverTasks]) => (
                 <div key={serverName} className="page-section" style={{ marginBottom: '30px' }}>
-                    <h2 style={{ borderBottom: '2px solid #4CAF50', paddingBottom: '8px' }}>
+                    <h2 style={{ borderBottom: '2px solid #b15a27', paddingBottom: '8px' }}>
                         <i className="fa-solid fa-layer-group" style={{ marginRight: '6px' }} />{serverName}
                         <span style={{ fontSize: '14px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
                             ({serverTasks.filter(t => !t.is_completed).length} pending)
@@ -241,7 +240,7 @@ export default function Overview() {
                                         {task.is_completed && ' ✓'}
                                     </span>
                                     <span style={{ fontSize: '12px', color: 'var(--app-text-muted)', marginLeft: '10px' }}>
-                                        {task.priority} • {task.points_value} pts
+                                        {task.priority} • {task.awarded_points ?? task.points_value} pts
                                         {task.due_date && ` • Due: ${task.due_date}`}
                                         {task.recurrence && task.recurrence !== 'NONE' && ` • 🔄 ${task.recurrence}`}
                                     </span>
@@ -249,15 +248,15 @@ export default function Overview() {
                                 <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                                     {!task.is_completed && (
                                         <button
+                                            className="overview-action-btn overview-action-btn-success"
                                             onClick={() => handleCompleteTask(task.id)}
-                                            style={{ background: '#4CAF50', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
                                         >
                                             Complete
                                         </button>
                                     )}
                                     <button
+                                        className="overview-action-btn overview-action-btn-danger"
                                         onClick={() => handleDeleteTask(task.id)}
-                                        style={{ background: '#f44336', color: 'white', border: 'none', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}
                                     >
                                         Delete
                                     </button>

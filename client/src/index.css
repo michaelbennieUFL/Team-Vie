@@ -1,3 +1,7 @@
+html {
+  scroll-behavior: smooth;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -5,21 +9,27 @@
 }
 
 body {
-  font-family: 'Public Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   background:
-    radial-gradient(circle at top right, rgba(32, 214, 181, 0.16), transparent 50%),
-    radial-gradient(circle at 20% 20%, rgba(15, 127, 232, 0.18), transparent 45%),
-    #f5f4f1;
-  color: #0b0d0f;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(247, 244, 230, 0.94)),
+    radial-gradient(circle at 12% 12%, rgba(255, 255, 255, 0.9), transparent 22%),
+    radial-gradient(circle at 82% 14%, rgba(252, 242, 132, 0.34), transparent 26%),
+    radial-gradient(circle at 72% 88%, rgba(226, 207, 153, 0.24), transparent 24%),
+    radial-gradient(circle at top right, rgba(167, 207, 246, 0.38), transparent 32%),
+    linear-gradient(135deg, #edf4fb 0%, #f9f2ca 42%, #f7fbff 100%);
+  color: #102132;
   line-height: 1.6;
   transition: background 0.35s ease, color 0.35s ease;
 }
 
 body.app-theme-dark {
   background:
-    radial-gradient(circle at top right, rgba(32, 214, 181, 0.18), transparent 50%),
-    radial-gradient(circle at 20% 20%, rgba(15, 127, 232, 0.18), transparent 45%),
-    #09131f;
+    linear-gradient(180deg, rgba(10, 21, 31, 0.34), rgba(8, 19, 28, 0.9)),
+    radial-gradient(circle at 12% 12%, rgba(255, 255, 255, 0.08), transparent 20%),
+    radial-gradient(circle at 82% 14%, rgba(177, 90, 39, 0.22), transparent 24%),
+    radial-gradient(circle at 72% 88%, rgba(103, 54, 16, 0.24), transparent 24%),
+    radial-gradient(circle at top right, rgba(77, 135, 176, 0.26), transparent 32%),
+    linear-gradient(135deg, #152d3d 0%, #23526f 42%, #17374d 100%);
   color: #eef4fb;
 }
 
