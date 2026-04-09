@@ -49,7 +49,7 @@ services:
     image: postgres:18
     container_name: vie-db
     volumes:
-      - vie-db-data:/var/lib/postgresql/data
+      - vie-db-data:/var/lib/postgresql
     ports:
       - 5432:5432
     healthcheck:
