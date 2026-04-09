@@ -39,11 +39,13 @@ class CompetitionTask(models.Model):
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES, default='MEDIUM')
     points_value = models.IntegerField(default=10)
     score_reason = models.CharField(max_length=64, blank=True)
-    challenger_completed = models.BooleanField(default=False)
-    challenger_completed_at = models.DateTimeField(null=True, blank=True)
-    opponent_completed = models.BooleanField(default=False)
-    opponent_completed_at = models.DateTimeField(null=True, blank=True)
+    # challenger_completed = models.BooleanField(default=False)
+    #challenger_completed_at = models.DateTimeField(null=True, blank=True)
+    #opponent_completed = models.BooleanField(default=False)
+    #opponent_completed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='competitions_assigned')
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title} - {self.competition}"
