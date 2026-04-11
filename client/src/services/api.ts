@@ -12,9 +12,9 @@ export interface User {
     longest_streak: number;
     last_task_completed_date: string | null;
     region: string;
-    default_weekly_goal_points: number;
-    best_weekly_personal_points: number;
-    weekly_progress: WeeklyProgressSnapshot;
+    default_weekly_goal_points?: number;
+    best_weekly_personal_points?: number;
+    weekly_progress?: WeeklyProgressSnapshot;
   };
 }
 
@@ -45,8 +45,8 @@ export interface Task {
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   points_value: number;
-  awarded_points: number | null;
-  score_reason: string;
+  awarded_points?: number | null;
+  score_reason?: string;
   is_completed: boolean;
   completed_at: string | null;
   created_at: string;
@@ -54,6 +54,16 @@ export interface Task {
   due_date: string | null;
   server: number | null;
   recurrence: 'NONE' | 'DAILY' | 'WEEKLY';
+  lifecycle_state?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  started_at?: string | null;
+  last_activity_at?: string | null;
+  active_seconds?: number;
+  timer_invalidated?: boolean;
+  outlier_flagged?: boolean;
+  projected_points?: number | null;
+  timer_hint?: {
+    idle_timeout_seconds: number;
+  } | null;
 }
 
 export interface Competition {
@@ -348,7 +358,40 @@ class ApiService {
       headers: this.getHeaders(),
       credentials: 'include',
     });
-    return this.handleResponse<{ message: string; points_earned: number; task: Task; celebration: CelebrationPayload }>(response);
+    return this.handleResponse<{
+      message: string;
+      points_earned: number;
+      task: Task;
+      celebration: CelebrationPayload;
+      timer?: {
+        active_seconds: number;
+        counted_active_seconds: number;
+        base_points: number;
+        time_bonus_points: number;
+        minimum_time_met: boolean;
+        daily_cap_applied: boolean;
+        timer_invalidated: boolean;
+        outlier_flagged: boolean;
+      };
+    }>(response);
+  }
+
+  async startTask(id: number) {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/start/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string; task: Task }>(response);
+  }
+
+  async heartbeatTask(id: number) {
+    const response = await fetch(`${API_BASE_URL}/tasks/${id}/heartbeat/`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    });
+    return this.handleResponse<{ message: string; counted_seconds: number; went_idle: boolean; task: Task }>(response);
   }
 
   // Leaderboard

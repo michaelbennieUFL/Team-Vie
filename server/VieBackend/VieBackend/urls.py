@@ -16,6 +16,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
 from rest_framework.routers import DefaultRouter
 from tasks.views import TaskViewSet
 from competitions.views import CompetitionViewSet
@@ -27,6 +28,7 @@ router.register(r'competitions', CompetitionViewSet, basename='competition')
 router.register(r'servers', ServerViewSet, basename='server')
 
 urlpatterns = [
+    path('api/health/', lambda request: JsonResponse({'status': 'ok'})),
     path('admin/', admin.site.urls),
     path('api/users/', include('users.urls')),
     path('api/', include(router.urls)),

@@ -17,6 +17,11 @@ class Task(models.Model):
         ('DAILY', 'Daily'),
         ('WEEKLY', 'Weekly'),
     ]
+    LIFECYCLE_CHOICES = [
+        ('NOT_STARTED', 'Not started'),
+        ('IN_PROGRESS', 'In progress'),
+        ('COMPLETED', 'Completed'),
+    ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     server = models.ForeignKey('servers.Server', on_delete=models.CASCADE, related_name='tasks', null=True, blank=True)
@@ -32,6 +37,12 @@ class Task(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     due_date = models.DateField(null=True, blank=True)
     recurrence = models.CharField(max_length=10, choices=RECURRENCE_CHOICES, default='NONE')
+    lifecycle_state = models.CharField(max_length=12, choices=LIFECYCLE_CHOICES, default='NOT_STARTED')
+    started_at = models.DateTimeField(null=True, blank=True)
+    last_activity_at = models.DateTimeField(null=True, blank=True)
+    active_seconds = models.PositiveIntegerField(default=0)
+    timer_invalidated = models.BooleanField(default=False)
+    outlier_flagged = models.BooleanField(default=False)
     
     def __str__(self):
         return f"{self.title} - {self.user.username}"
@@ -41,14 +52,45 @@ class Task(models.Model):
 
     def sync_points_value(self):
         self.points_value = self.assigned_points_value()
+
+    def start_work(self, *, now=None):
+        if self.is_completed:
+            return False
+        current_time = now or timezone.now()
+        if not self.started_at:
+            self.started_at = current_time
+        self.last_activity_at = current_time
+        self.lifecycle_state = 'IN_PROGRESS'
+        self.save(update_fields=['started_at', 'last_activity_at', 'lifecycle_state', 'updated_at'])
+        return True
+
+    def record_activity(self, *, now=None, idle_timeout_seconds=300):
+        if self.lifecycle_state != 'IN_PROGRESS' or self.is_completed:
+            return 0, False
+        current_time = now or timezone.now()
+        if not self.last_activity_at:
+            self.last_activity_at = current_time
+            self.save(update_fields=['last_activity_at', 'updated_at'])
+            return 0, False
+        elapsed_seconds = max(int((current_time - self.last_activity_at).total_seconds()), 0)
+        counted_seconds = min(elapsed_seconds, idle_timeout_seconds)
+        went_idle = elapsed_seconds > idle_timeout_seconds
+        if counted_seconds:
+            self.active_seconds += counted_seconds
+        if went_idle:
+            self.outlier_flagged = True
+        self.last_activity_at = current_time
+        self.save(update_fields=['active_seconds', 'outlier_flagged', 'last_activity_at', 'updated_at'])
+        return counted_seconds, went_idle
     
-    def complete_task(self, awarded_points=None, score_reason=''):
+    def complete_task(self, awarded_points=None, score_reason='', completed_at=None):
         if not self.is_completed:
             self.sync_points_value()
             self.is_completed = True
-            self.completed_at = timezone.now()
+            self.completed_at = completed_at or timezone.now()
             self.awarded_points = awarded_points if awarded_points is not None else self.points_value
             self.score_reason = score_reason
+            self.lifecycle_state = 'COMPLETED'
             self.save()
             
             # Award points to user

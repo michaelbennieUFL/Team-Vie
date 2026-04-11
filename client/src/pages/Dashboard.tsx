@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import ProtectedNav from '../components/ProtectedNav';
@@ -234,6 +234,15 @@ export default function Dashboard() {
     }
   };
 
+  const handleStartTask = async (taskId: number) => {
+    try {
+      const response = await apiService.startTask(taskId);
+      setTasks((prev) => prev.map((task) => (task.id === taskId ? response.task : task)));
+    } catch (error) {
+      toast.error(`Failed to start task: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const handleCompleteTask = async (taskId: number) => {
     try {
       const response = await apiService.completeTask(taskId);
@@ -285,6 +294,7 @@ export default function Dashboard() {
   const weeklyGoalPoints = weeklyProgress?.weekly_goal_points ?? user?.profile.default_weekly_goal_points ?? 120;
   const weeklyPointsRemaining = weeklyProgress?.competitive_points_remaining ?? Math.max(weeklyGoalPoints - weeklyCompetitivePoints, 0);
   const progress = Math.min((weeklyCompetitivePoints / weeklyGoalPoints) * 100, 100);
+  const isTaskInProgress = (task: Task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS';
   const priorityCounts = useMemo(
     () => ({
       high: tasks.filter((t) => t.priority === 'HIGH').length,
@@ -293,6 +303,15 @@ export default function Dashboard() {
     }),
     [tasks]
   );
+  const activeInProgressTasks = useMemo(
+    () => tasks.filter((task) => isTaskInProgress(task) && !task.is_completed),
+    [tasks]
+  );
+  const activeInProgressTasksRef = useRef<Task[]>([]);
+
+  useEffect(() => {
+    activeInProgressTasksRef.current = activeInProgressTasks;
+  }, [activeInProgressTasks, toast]);
   const activeChallenges = useMemo(() => {
     if (!user) return [];
     return competitions
@@ -316,6 +335,32 @@ export default function Dashboard() {
     if (priority === 'LOW') return 'tag tag-low';
     return 'tag tag-medium';
   };
+
+  const formatDuration = (totalSeconds: number) => {
+    const safe = Math.max(0, Math.floor(totalSeconds));
+    const minutes = Math.floor(safe / 60);
+    const seconds = safe % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (!activeInProgressTasks.length) return;
+    const intervalId = window.setInterval(async () => {
+      try {
+        const updates = await Promise.all(
+          activeInProgressTasksRef.current
+            .filter((task) => !task.is_completed && isTaskInProgress(task))
+            .map((task) => apiService.heartbeatTask(task.id))
+        );
+        const updateMap = new Map(updates.map((u) => [u.task.id, u.task]));
+        setTasks((prev) => prev.map((task) => updateMap.get(task.id) ?? task));
+      } catch (error) {
+        console.error('Heartbeat update failed', error);
+        toast.error('Live timer sync failed. Please refresh to resume accurate tracking.');
+      }
+    }, 60000);
+    return () => window.clearInterval(intervalId);
+  }, [activeInProgressTasks]);
 
   return (
     <div className={`dashboard ${isDarkMode ? 'dashboard-dark' : ''}`}>
@@ -430,7 +475,7 @@ export default function Dashboard() {
                     className="check-btn"
                     onClick={() => handleCompleteTask(task.id)}
                     aria-label={`Mark ${task.title} complete`}
-                    disabled={task.is_completed}
+                    disabled={task.is_completed || !isTaskInProgress(task)}
                   >
                     {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
                   </button>
@@ -444,9 +489,24 @@ export default function Dashboard() {
                       <span><i className="fa-solid fa-star" /> {task.awarded_points ?? task.points_value} pts</span>
                       {task.due_date && <span><i className="fa-solid fa-clock" /> Due {task.due_date}</span>}
                       {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
+                      {!task.is_completed && (
+                        <span>
+                          <i className="fa-solid fa-stopwatch" /> {formatDuration(task.active_seconds ?? 0)}
+                        </span>
+                      )}
+                      {!task.is_completed && task.projected_points != null && (
+                        <span>
+                          <i className="fa-solid fa-chart-line" /> Projected: {task.projected_points} pts
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {!task.is_completed && (
+                      <button className="ghost-btn" onClick={() => handleStartTask(task.id)} disabled={isTaskInProgress(task)}>
+                        {isTaskInProgress(task) ? 'In progress' : 'Start'}
+                      </button>
+                    )}
                     {!task.is_completed && (
                       <button className="edit-btn" onClick={() => setEditingTask(task)}>
                         Edit
