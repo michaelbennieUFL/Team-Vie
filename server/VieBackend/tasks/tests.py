@@ -21,6 +21,17 @@ class TaskScoringTests(APITestCase):
         task.refresh_from_db()
         return task
 
+    def _prepare_task_for_completion(self, task, *, minutes_old=5, active_seconds=120):
+        Task.objects.filter(id=task.id).update(
+            created_at=timezone.now() - timedelta(minutes=minutes_old),
+            lifecycle_state='IN_PROGRESS',
+            started_at=timezone.now() - timedelta(seconds=active_seconds),
+            last_activity_at=timezone.now(),
+            active_seconds=active_seconds,
+        )
+        task.refresh_from_db()
+        return task
+
     def test_complete_task_returns_backend_owned_points_and_celebration(self):
         task = Task.objects.create(
             user=self.user,
@@ -28,20 +39,20 @@ class TaskScoringTests(APITestCase):
             priority='HIGH',
             points_value=999,
         )
-        self._age_task(task)
+        self._prepare_task_for_completion(task)
 
         response = self.client.post(f'/api/tasks/{task.id}/complete/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['points_earned'], 15)
+        self.assertEqual(response.data['points_earned'], 18)
         self.assertIn('celebration', response.data)
         self.assertEqual(response.data['celebration']['current_streak'], 1)
         self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.points, 15)
+        self.assertEqual(self.user.profile.points, 18)
         weekly_progress = WeeklyProgress.objects.get(user=self.user)
-        self.assertEqual(weekly_progress.competitive_points, 15)
-        self.assertEqual(weekly_progress.personal_points, 15)
-        self.assertEqual(self.user.profile.best_weekly_personal_points, 15)
+        self.assertEqual(weekly_progress.competitive_points, 18)
+        self.assertEqual(weekly_progress.personal_points, 18)
+        self.assertEqual(self.user.profile.best_weekly_personal_points, 18)
 
     def test_task_creation_ignores_client_points_value(self):
         response = self.client.post('/api/tasks/', {
@@ -75,15 +86,15 @@ class TaskScoringTests(APITestCase):
             title='One more low task',
             priority='LOW',
         )
-        self._age_task(task)
+        self._prepare_task_for_completion(task)
 
         response = self.client.post(f'/api/tasks/{task.id}/complete/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['points_earned'], 2)
+        self.assertEqual(response.data['points_earned'], 3)
         weekly_progress = WeeklyProgress.objects.get(user=self.user)
         self.assertEqual(weekly_progress.competitive_points, 0)
-        self.assertEqual(weekly_progress.personal_points, 2)
+        self.assertEqual(weekly_progress.personal_points, 3)
         daily_progress = DailyTaskProgress.objects.get(user=self.user, day=timezone.now().date())
         self.assertEqual(daily_progress.low_reduced_count, 1)
 
@@ -95,12 +106,12 @@ class TaskScoringTests(APITestCase):
             title='Fourth hard task',
             priority='HIGH',
         )
-        self._age_task(task)
+        self._prepare_task_for_completion(task)
 
         response = self.client.post(f'/api/tasks/{task.id}/complete/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['points_earned'], 8)
+        self.assertEqual(response.data['points_earned'], 11)
         self.assertTrue(response.data['celebration']['daily_limit_reached'])
         self.assertIn('full-point limit', response.data['celebration']['limit_note'])
 
@@ -111,10 +122,10 @@ class TaskScoringTests(APITestCase):
                 title=f'Hard task {idx}',
                 priority='HIGH',
             )
-            self._age_task(task)
+            self._prepare_task_for_completion(task)
             response = self.client.post(f'/api/tasks/{task.id}/complete/')
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.assertEqual(response.data['points_earned'], 15)
+            self.assertEqual(response.data['points_earned'], 18)
 
         completed_task = Task.objects.filter(user=self.user, priority='HIGH', is_completed=True).first()
         self.assertIsNotNone(completed_task)
@@ -125,12 +136,12 @@ class TaskScoringTests(APITestCase):
             title='Another hard task',
             priority='HIGH',
         )
-        self._age_task(next_task)
+        self._prepare_task_for_completion(next_task)
 
         response = self.client.post(f'/api/tasks/{next_task.id}/complete/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['points_earned'], 8)
+        self.assertEqual(response.data['points_earned'], 11)
         daily_progress = DailyTaskProgress.objects.get(user=self.user, day=timezone.now().date())
         self.assertEqual(daily_progress.high_full_count, 3)
         self.assertEqual(daily_progress.high_reduced_count, 1)
@@ -146,7 +157,7 @@ class TaskScoringTests(APITestCase):
             title='Personal task',
             priority='HIGH',
         )
-        self._age_task(task)
+        self._prepare_task_for_completion(task)
 
         response = self.client.post(f'/api/tasks/{task.id}/complete/')
 

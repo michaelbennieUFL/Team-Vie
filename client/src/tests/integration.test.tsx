@@ -19,6 +19,8 @@ vi.mock('../services/api', () => ({
         updateTask: vi.fn(),
         deleteTask: vi.fn(),
         completeTask: vi.fn(),
+        startTask: vi.fn(),
+        heartbeatTask: vi.fn(),
         searchServers: vi.fn().mockResolvedValue([]),
         joinServer: vi.fn(),
         createServer: vi.fn(),
@@ -653,4 +655,3 @@ describe('apiService auth redirect', () => {
         vi.unstubAllGlobals();
     });
 });
-

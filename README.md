@@ -11,6 +11,8 @@ Vie is a gamified productivity application that helps users stay motivated throu
 
 ### 📂 Servers (Workspaces)
 - Create and join servers (like Discord)
+- Server role governance: **Owner**, **Admin**, **Member**
+- Join policies: **Open**, **Invite Only**, **Approval Required**
 - Default servers: **COP 2000**, **ANT 3030**, **Personal**
 - Dropdown server selector on Dashboard
 - Each server has its own tasks, leaderboard, and competitions
@@ -28,6 +30,7 @@ Vie is a gamified productivity application that helps users stay motivated throu
 - Earn points by completing tasks
 - Track your total points
 - Points contribute to leaderboard ranking
+- Task timers support earned time bonuses with anti-cheat guardrails
 
 ### 🔥 Streak Tracking
 - Track consecutive days of task completion
@@ -315,6 +318,23 @@ npm run build
 
 # The build files will be in client/dist/
 ```
+
+### Production Deployment (Docker Compose)
+
+1. Create a production env file from the template:
+```bash
+cp .env.production.example .env.production
+```
+2. Set real secrets/hosts in `.env.production`.
+3. Build and start:
+```bash
+docker compose -f compose.prod.yml up -d --build
+```
+4. Run migrations:
+```bash
+docker compose -f compose.prod.yml exec backend python manage.py migrate
+```
+5. Seed data only for non-production environments.
 
 ## Contributing
 
