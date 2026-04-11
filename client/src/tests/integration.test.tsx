@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../components/ToastProvider';
 
 vi.mock('../services/api', () => ({
     apiService: {
@@ -48,7 +49,11 @@ import Leaderboard from '../pages/Leaderboard';
 import Schedule from '../pages/Schedule';
 
 function renderWithRouter(ui: React.ReactElement, { route = '/' } = {}) {
-    return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);
+    return render(
+        <MemoryRouter initialEntries={[route]}>
+            <ToastProvider>{ui}</ToastProvider>
+        </MemoryRouter>
+    );
 }
 
 const mockCompetition = (overrides = {}) => ({
@@ -79,7 +84,7 @@ describe('ProtectedNav', () => {
     it('renders all nav links', () => {
         renderWithRouter(<ProtectedNav isDarkMode={false} onToggleTheme={toggleTheme} />);
         expect(screen.getByText('Dashboard')).toBeInTheDocument();
-        expect(screen.getByText('Overview')).toBeInTheDocument();
+        expect(screen.getByText('All Tasks')).toBeInTheDocument();
         expect(screen.getByText('Schedule')).toBeInTheDocument();
         expect(screen.getByText('Leaderboard')).toBeInTheDocument();
         expect(screen.getByText('Competitions')).toBeInTheDocument();
@@ -98,13 +103,13 @@ describe('ProtectedNav', () => {
         expect(toggleTheme).toHaveBeenCalledOnce();
     });
 
-    it('calls logout API, clears localStorage, and navigates to /login on logout', async () => {
+    it('calls logout API, clears localStorage, and navigates to / on logout', async () => {
         renderWithRouter(<ProtectedNav isDarkMode={false} onToggleTheme={toggleTheme} />);
         await userEvent.click(screen.getByRole('button', { name: /logout/i }));
         await waitFor(() => {
             expect(apiService.logout).toHaveBeenCalledOnce();
             expect(localStorage.getItem('user')).toBeNull();
-            expect(mockNavigate).toHaveBeenCalledWith('/login');
+            expect(mockNavigate).toHaveBeenCalledWith('/');
         });
     });
 });
@@ -296,6 +301,8 @@ describe('Dashboard page', () => {
         due_date: null,
         server: 10,
         recurrence: 'NONE' as const,
+        lifecycle_state: 'IN_PROGRESS' as const,
+        active_seconds: 120,
     };
 
     const mockJoinServer = {
@@ -341,7 +348,7 @@ describe('Dashboard page', () => {
     it('renders dashboard greeting, tasks, and quote', async () => {
         renderWithRouter(<Dashboard />);
         await waitFor(() => {
-            expect(screen.getByText(/Good (morning|afternoon|evening), Demo/i)).toBeInTheDocument();
+            expect(screen.getByRole('heading', { level: 2, name: /Good (morning|afternoon|evening).*Demo/i })).toBeInTheDocument();
             expect(screen.getByText('Finish biology notes')).toBeInTheDocument();
             expect(screen.getByText(/Keep going, one step at a time\./i)).toBeInTheDocument();
             expect(screen.getByRole('button', { name: /Dev server/i })).toBeInTheDocument();
@@ -455,6 +462,8 @@ describe('Overview page', () => {
         due_date: null,
         server: 10,
         recurrence: 'NONE' as const,
+        lifecycle_state: 'IN_PROGRESS' as const,
+        active_seconds: 120,
     };
 
     beforeEach(() => {
@@ -487,7 +496,7 @@ describe('Overview page', () => {
     it('renders overview stats and tasks', async () => {
         renderWithRouter(<Overview />);
         await waitFor(() => {
-            expect(screen.getByText('📋 Overview — All Tasks')).toBeInTheDocument();
+            expect(screen.getByText('📋 All Tasks')).toBeInTheDocument();
             expect(screen.getByText('Total Tasks')).toBeInTheDocument();
             expect(screen.getByText('150')).toBeInTheDocument(); // points
             expect(screen.getByText('Finish biology notes')).toBeInTheDocument();
@@ -515,7 +524,6 @@ describe('Overview page', () => {
 
         await waitFor(() => {
             expect(apiService.completeTask).toHaveBeenCalledWith(mockTask.id);
-            expect(window.alert).toHaveBeenCalledWith('Task completed! You earned 15 points!');
         });
     });
 
@@ -603,6 +611,8 @@ describe('Schedule page', () => {
         due_date: '2026-04-04',
         server: null,
         recurrence: 'NONE' as const,
+        lifecycle_state: 'NOT_STARTED' as const,
+        active_seconds: 0,
     };
 
     beforeEach(() => {

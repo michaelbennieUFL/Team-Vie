@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { useNavigate } from 'react-router-dom';
 import ProtectedNav from '../components/ProtectedNav';
@@ -294,6 +294,7 @@ export default function Dashboard() {
   const weeklyGoalPoints = weeklyProgress?.weekly_goal_points ?? user?.profile.default_weekly_goal_points ?? 120;
   const weeklyPointsRemaining = weeklyProgress?.competitive_points_remaining ?? Math.max(weeklyGoalPoints - weeklyCompetitivePoints, 0);
   const progress = Math.min((weeklyCompetitivePoints / weeklyGoalPoints) * 100, 100);
+  const isTaskInProgress = (task: Task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS';
   const priorityCounts = useMemo(
     () => ({
       high: tasks.filter((t) => t.priority === 'HIGH').length,
@@ -310,6 +311,11 @@ export default function Dashboard() {
     () => activeInProgressTasks.map((task) => task.id).sort((a, b) => a - b).join(','),
     [activeInProgressTasks]
   );
+  const activeInProgressTasksRef = useRef<Task[]>([]);
+
+  useEffect(() => {
+    activeInProgressTasksRef.current = activeInProgressTasks;
+  }, [activeInProgressTasks]);
   const activeChallenges = useMemo(() => {
     if (!user) return [];
     return competitions
@@ -334,8 +340,6 @@ export default function Dashboard() {
     return 'tag tag-medium';
   };
 
-  const isTaskInProgress = (task: Task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS';
-
   const formatDuration = (totalSeconds: number) => {
     const safe = Math.max(0, Math.floor(totalSeconds));
     const minutes = Math.floor(safe / 60);
@@ -347,7 +351,9 @@ export default function Dashboard() {
     if (!activeInProgressTasks.length) return;
     const intervalId = window.setInterval(async () => {
       try {
-        const updates = await Promise.all(activeInProgressTasks.map((task) => apiService.heartbeatTask(task.id)));
+        const updates = await Promise.all(
+          activeInProgressTasksRef.current.map((task) => apiService.heartbeatTask(task.id))
+        );
         const updateMap = new Map(updates.map((u) => [u.task.id, u.task]));
         setTasks((prev) => prev.map((task) => updateMap.get(task.id) ?? task));
       } catch (error) {

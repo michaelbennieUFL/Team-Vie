@@ -90,9 +90,7 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error': f'Task requires at least {MIN_ACTIVE_SECONDS_FOR_BONUS // 60} minutes of active work before completion'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        today = task.completed_at.date() if task.completed_at else None
-        if not today:
-            today = timezone.now().date()
+        today = timezone.now().date()
         prior_today_seconds = Task.objects.filter(
             user=request.user,
             is_completed=True,
