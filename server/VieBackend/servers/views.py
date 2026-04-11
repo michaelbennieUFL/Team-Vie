@@ -291,10 +291,12 @@ class ServerViewSet(viewsets.ModelViewSet):
         join_request.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
         if decision == 'APPROVE':
             action_name = 'JOIN_APPROVED'
+            message = 'Join request approved'
         else:
             action_name = 'JOIN_REJECTED'
+            message = 'Join request rejected'
         self._audit(server=server, action_name=action_name, target_user=join_request.user)
-        return Response({'message': f'Join request {decision.lower()}d'})
+        return Response({'message': message})
 
     @action(detail=True, methods=['post'])
     def remove_member(self, request, pk=None):

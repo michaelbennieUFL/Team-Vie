@@ -88,5 +88,10 @@ class CompetitionScoringTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.competition.refresh_from_db()
+        task.refresh_from_db()
         self.assertEqual(self.competition.challenger_score, 10)
         self.assertEqual(self.competition.opponent_score, 0)
+        self.assertTrue(task.challenger_completed)
+        self.assertIsNotNone(task.challenger_completed_at)
+        self.assertFalse(task.opponent_completed)
+        self.assertIsNone(task.opponent_completed_at)

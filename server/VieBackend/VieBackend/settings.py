@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+from django.core.management.utils import get_random_secret_key
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,7 +36,7 @@ def env_list(name: str, default: list[str]) -> list[str]:
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development').lower()
 IS_PRODUCTION = ENVIRONMENT == 'production'
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-dev-only-key')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') or get_random_secret_key()
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', not IS_PRODUCTION)
@@ -187,6 +188,8 @@ CHANNEL_LAYERS = {
 }
 
 if IS_PRODUCTION:
+    if not os.getenv('DJANGO_SECRET_KEY'):
+        raise RuntimeError('DJANGO_SECRET_KEY must be set in production')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SAMESITE = 'Lax'

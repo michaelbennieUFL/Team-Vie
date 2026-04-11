@@ -302,6 +302,14 @@ export default function Dashboard() {
     }),
     [tasks]
   );
+  const activeInProgressTasks = useMemo(
+    () => tasks.filter((task) => isTaskInProgress(task) && !task.is_completed),
+    [tasks]
+  );
+  const activeInProgressTaskIdsKey = useMemo(
+    () => activeInProgressTasks.map((task) => task.id).sort((a, b) => a - b).join(','),
+    [activeInProgressTasks]
+  );
   const activeChallenges = useMemo(() => {
     if (!user) return [];
     return competitions
@@ -326,6 +334,8 @@ export default function Dashboard() {
     return 'tag tag-medium';
   };
 
+  const isTaskInProgress = (task: Task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS';
+
   const formatDuration = (totalSeconds: number) => {
     const safe = Math.max(0, Math.floor(totalSeconds));
     const minutes = Math.floor(safe / 60);
@@ -334,11 +344,10 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const activeTasks = tasks.filter((task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS' && !task.is_completed);
-    if (!activeTasks.length) return;
+    if (!activeInProgressTasks.length) return;
     const intervalId = window.setInterval(async () => {
       try {
-        const updates = await Promise.all(activeTasks.map((task) => apiService.heartbeatTask(task.id)));
+        const updates = await Promise.all(activeInProgressTasks.map((task) => apiService.heartbeatTask(task.id)));
         const updateMap = new Map(updates.map((u) => [u.task.id, u.task]));
         setTasks((prev) => prev.map((task) => updateMap.get(task.id) ?? task));
       } catch (error) {
@@ -346,7 +355,7 @@ export default function Dashboard() {
       }
     }, 60000);
     return () => window.clearInterval(intervalId);
-  }, [tasks]);
+  }, [activeInProgressTaskIdsKey]);
 
   return (
     <div className={`dashboard ${isDarkMode ? 'dashboard-dark' : ''}`}>
@@ -461,7 +470,7 @@ export default function Dashboard() {
                     className="check-btn"
                     onClick={() => handleCompleteTask(task.id)}
                     aria-label={`Mark ${task.title} complete`}
-                    disabled={task.is_completed || (task.lifecycle_state ?? 'NOT_STARTED') !== 'IN_PROGRESS'}
+                    disabled={task.is_completed || !isTaskInProgress(task)}
                   >
                     {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
                   </button>
@@ -489,8 +498,8 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {!task.is_completed && (
-                      <button className="ghost-btn" onClick={() => handleStartTask(task.id)} disabled={(task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS'}>
-                        {(task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS' ? 'In progress' : 'Start'}
+                      <button className="ghost-btn" onClick={() => handleStartTask(task.id)} disabled={isTaskInProgress(task)}>
+                        {isTaskInProgress(task) ? 'In progress' : 'Start'}
                       </button>
                     )}
                     {!task.is_completed && (

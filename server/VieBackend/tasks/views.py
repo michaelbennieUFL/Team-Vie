@@ -2,6 +2,8 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.db.models import Sum
+from django.utils import timezone
 from django.db.models import Q
 from .models import Task
 from .serializers import TaskSerializer
@@ -85,13 +87,11 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         if task.active_seconds < MIN_ACTIVE_SECONDS_FOR_BONUS:
             return Response({
-                'error': f'Task requires at least {MIN_ACTIVE_SECONDS_FOR_BONUS // 60} minute of active work before completion'
+                'error': f'Task requires at least {MIN_ACTIVE_SECONDS_FOR_BONUS // 60} minutes of active work before completion'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        from django.db.models import Sum
         today = task.completed_at.date() if task.completed_at else None
         if not today:
-            from django.utils import timezone
             today = timezone.now().date()
         prior_today_seconds = Task.objects.filter(
             user=request.user,
