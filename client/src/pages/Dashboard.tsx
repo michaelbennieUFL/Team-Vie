@@ -307,15 +307,11 @@ export default function Dashboard() {
     () => tasks.filter((task) => isTaskInProgress(task) && !task.is_completed),
     [tasks]
   );
-  const activeInProgressTaskIdsKey = useMemo(
-    () => activeInProgressTasks.map((task) => task.id).sort((a, b) => a - b).join(','),
-    [activeInProgressTasks]
-  );
   const activeInProgressTasksRef = useRef<Task[]>([]);
 
   useEffect(() => {
     activeInProgressTasksRef.current = activeInProgressTasks;
-  }, [activeInProgressTasks]);
+  }, [activeInProgressTasks, toast]);
   const activeChallenges = useMemo(() => {
     if (!user) return [];
     return competitions
@@ -352,16 +348,19 @@ export default function Dashboard() {
     const intervalId = window.setInterval(async () => {
       try {
         const updates = await Promise.all(
-          activeInProgressTasksRef.current.map((task) => apiService.heartbeatTask(task.id))
+          activeInProgressTasksRef.current
+            .filter((task) => !task.is_completed && isTaskInProgress(task))
+            .map((task) => apiService.heartbeatTask(task.id))
         );
         const updateMap = new Map(updates.map((u) => [u.task.id, u.task]));
         setTasks((prev) => prev.map((task) => updateMap.get(task.id) ?? task));
       } catch (error) {
         console.error('Heartbeat update failed', error);
+        toast.error('Live timer sync failed. Please refresh to resume accurate tracking.');
       }
     }, 60000);
     return () => window.clearInterval(intervalId);
-  }, [activeInProgressTaskIdsKey]);
+  }, [activeInProgressTasks]);
 
   return (
     <div className={`dashboard ${isDarkMode ? 'dashboard-dark' : ''}`}>

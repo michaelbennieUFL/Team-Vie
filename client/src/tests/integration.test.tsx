@@ -524,6 +524,7 @@ describe('Overview page', () => {
 
         await waitFor(() => {
             expect(apiService.completeTask).toHaveBeenCalledWith(mockTask.id);
+            expect(screen.getByText(/Task completed\. You earned 15 points\./i)).toBeInTheDocument();
         });
     });
 

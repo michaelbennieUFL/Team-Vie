@@ -111,12 +111,9 @@ class ServerViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def join(self, request, pk=None):
         try:
-            server = Server.all_objects.get(pk=pk)
+            server = Server.objects.get(pk=pk)
         except Server.DoesNotExist:
             return Response({'error': 'Server not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        if server.is_deleted:
-            return Response({'error': 'Server is deleted'}, status=status.HTTP_400_BAD_REQUEST)
 
         if ServerMembership.objects.filter(user=request.user, server=server).exists():
             return Response({'error': 'Already a member'}, status=status.HTTP_400_BAD_REQUEST)

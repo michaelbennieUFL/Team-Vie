@@ -36,7 +36,13 @@ def env_list(name: str, default: list[str]) -> list[str]:
 ENVIRONMENT = os.getenv('ENVIRONMENT', 'development').lower()
 IS_PRODUCTION = ENVIRONMENT == 'production'
 
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') or get_random_secret_key()
+provided_secret_key = os.getenv('DJANGO_SECRET_KEY')
+if IS_PRODUCTION and not provided_secret_key:
+    raise RuntimeError('DJANGO_SECRET_KEY must be set in production')
+
+SECRET_KEY = provided_secret_key or get_random_secret_key()
+if not provided_secret_key and not IS_PRODUCTION:
+    print('WARNING: DJANGO_SECRET_KEY is not set; using ephemeral development key.')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', not IS_PRODUCTION)
@@ -188,8 +194,6 @@ CHANNEL_LAYERS = {
 }
 
 if IS_PRODUCTION:
-    if not os.getenv('DJANGO_SECRET_KEY'):
-        raise RuntimeError('DJANGO_SECRET_KEY must be set in production')
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SAMESITE = 'Lax'

@@ -83,11 +83,11 @@ class Task(models.Model):
         self.save(update_fields=['active_seconds', 'outlier_flagged', 'last_activity_at', 'updated_at'])
         return counted_seconds, went_idle
     
-    def complete_task(self, awarded_points=None, score_reason=''):
+    def complete_task(self, awarded_points=None, score_reason='', completed_at=None):
         if not self.is_completed:
             self.sync_points_value()
             self.is_completed = True
-            self.completed_at = timezone.now()
+            self.completed_at = completed_at or timezone.now()
             self.awarded_points = awarded_points if awarded_points is not None else self.points_value
             self.score_reason = score_reason
             self.lifecycle_state = 'COMPLETED'

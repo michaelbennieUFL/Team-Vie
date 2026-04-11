@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -90,11 +92,14 @@ class TaskViewSet(viewsets.ModelViewSet):
                 'error': f'Task requires at least {MIN_ACTIVE_SECONDS_FOR_BONUS // 60} minutes of active work before completion'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        today = timezone.now().date()
+        completion_time = timezone.now()
+        start_of_day = completion_time.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = start_of_day + timedelta(days=1)
         prior_today_seconds = Task.objects.filter(
             user=request.user,
             is_completed=True,
-            completed_at__date=today,
+            completed_at__gte=start_of_day,
+            completed_at__lt=end_of_day,
         ).aggregate(total=Sum('active_seconds'))['total'] or 0
 
         remaining_today_seconds = max(MAX_COUNTABLE_SECONDS_PER_DAY - prior_today_seconds, 0)
@@ -107,11 +112,16 @@ class TaskViewSet(viewsets.ModelViewSet):
             user=request.user,
             difficulty=task.priority,
             active_seconds=counted_active_seconds,
+            now=completion_time,
         )
         points_earned = score_summary['awarded_points']
         score_reason = score_summary['score_reason']
 
-        task.complete_task(awarded_points=points_earned, score_reason=score_reason)
+        task.complete_task(
+            awarded_points=points_earned,
+            score_reason=score_reason,
+            completed_at=completion_time,
+        )
 
         return Response({
             'message': 'Task completed successfully',
