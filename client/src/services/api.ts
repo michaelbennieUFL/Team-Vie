@@ -12,9 +12,9 @@ export interface User {
     longest_streak: number;
     last_task_completed_date: string | null;
     region: string;
-    default_weekly_goal_points: number;
-    best_weekly_personal_points: number;
-    weekly_progress: WeeklyProgressSnapshot;
+    default_weekly_goal_points?: number;
+    best_weekly_personal_points?: number;
+    weekly_progress?: WeeklyProgressSnapshot;
   };
 }
 
@@ -45,8 +45,8 @@ export interface Task {
   description: string;
   priority: 'LOW' | 'MEDIUM' | 'HIGH';
   points_value: number;
-  awarded_points: number | null;
-  score_reason: string;
+  awarded_points?: number | null;
+  score_reason?: string;
   is_completed: boolean;
   completed_at: string | null;
   created_at: string;
@@ -54,14 +54,14 @@ export interface Task {
   due_date: string | null;
   server: number | null;
   recurrence: 'NONE' | 'DAILY' | 'WEEKLY';
-  lifecycle_state: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-  started_at: string | null;
-  last_activity_at: string | null;
-  active_seconds: number;
-  timer_invalidated: boolean;
-  outlier_flagged: boolean;
-  projected_points: number | null;
-  timer_hint: {
+  lifecycle_state?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+  started_at?: string | null;
+  last_activity_at?: string | null;
+  active_seconds?: number;
+  timer_invalidated?: boolean;
+  outlier_flagged?: boolean;
+  projected_points?: number | null;
+  timer_hint?: {
     idle_timeout_seconds: number;
   } | null;
 }

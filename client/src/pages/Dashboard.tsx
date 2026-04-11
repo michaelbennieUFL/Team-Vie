@@ -334,7 +334,7 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const activeTasks = tasks.filter((task) => task.lifecycle_state === 'IN_PROGRESS' && !task.is_completed);
+    const activeTasks = tasks.filter((task) => (task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS' && !task.is_completed);
     if (!activeTasks.length) return;
     const intervalId = window.setInterval(async () => {
       try {
@@ -461,7 +461,7 @@ export default function Dashboard() {
                     className="check-btn"
                     onClick={() => handleCompleteTask(task.id)}
                     aria-label={`Mark ${task.title} complete`}
-                    disabled={task.is_completed || task.lifecycle_state !== 'IN_PROGRESS'}
+                    disabled={task.is_completed || (task.lifecycle_state ?? 'NOT_STARTED') !== 'IN_PROGRESS'}
                   >
                     {task.is_completed ? <i className="fa-solid fa-check" /> : ''}
                   </button>
@@ -477,10 +477,10 @@ export default function Dashboard() {
                       {task.recurrence !== 'NONE' && <span>🔄 {task.recurrence}</span>}
                       {!task.is_completed && (
                         <span>
-                          <i className="fa-solid fa-stopwatch" /> {formatDuration(task.active_seconds)}
+                          <i className="fa-solid fa-stopwatch" /> {formatDuration(task.active_seconds ?? 0)}
                         </span>
                       )}
-                      {!task.is_completed && task.projected_points !== null && (
+                      {!task.is_completed && task.projected_points != null && (
                         <span>
                           <i className="fa-solid fa-chart-line" /> Projected: {task.projected_points} pts
                         </span>
@@ -489,8 +489,8 @@ export default function Dashboard() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {!task.is_completed && (
-                      <button className="ghost-btn" onClick={() => handleStartTask(task.id)} disabled={task.lifecycle_state === 'IN_PROGRESS'}>
-                        {task.lifecycle_state === 'IN_PROGRESS' ? 'In progress' : 'Start'}
+                      <button className="ghost-btn" onClick={() => handleStartTask(task.id)} disabled={(task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS'}>
+                        {(task.lifecycle_state ?? 'NOT_STARTED') === 'IN_PROGRESS' ? 'In progress' : 'Start'}
                       </button>
                     )}
                     {!task.is_completed && (

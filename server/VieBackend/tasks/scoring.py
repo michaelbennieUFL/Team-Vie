@@ -97,11 +97,7 @@ def scoring_summary_for_task(*, user, difficulty: str, active_seconds: int = 0, 
         raw_bonus = (bounded_active_seconds / 60.0) * points_rate
         time_bonus_points = min(int(raw_bonus), MAX_TIME_BONUS_POINTS_PER_TASK[normalized])
     awarded_points = effective_base_points + time_bonus_points
-    score_reason = (
-        f'v2:{normalized.lower()}_{base_reason}'
-        f'|time_bonus:{time_bonus_points}'
-        f'|seconds:{bounded_active_seconds}'
-    )
+    score_reason = f'v2:{normalized.lower()}_{base_reason}'
     return {
         'awarded_points': awarded_points,
         'score_reason': score_reason if not projected else score_reason.replace('v2:', 'v2:projected_'),
