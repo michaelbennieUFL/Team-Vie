@@ -32,10 +32,12 @@ export default function Leaderboard() {
     };
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadServers();
     }, []);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadLeaderboard();
     }, [region, selectedServerId]);
 

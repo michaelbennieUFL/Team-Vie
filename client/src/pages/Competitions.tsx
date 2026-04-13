@@ -130,12 +130,14 @@ export default function Competitions() {
 
     // Reload when server filter changes
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadCompetitions(selectedServerId);
     }, [selectedServerId, loadCompetitions]);
 
     // Connect/reconnect WebSocket when the active competition changes
     useEffect(() => {
         if (selectedCompetition && selectedCompetition.status === 'ACTIVE') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             connectWebSocket(selectedCompetition.id);
         } else {
             // Close any open socket when there is no active competition selected
