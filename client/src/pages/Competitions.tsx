@@ -5,6 +5,10 @@ import { apiService } from '../services/api';
 import type { Competition, User, VieServer, UserSearchResult } from '../services/api';
 import { useAppTheme } from '../hooks/useAppTheme';
 
+const WS_BASE_URL =
+    (import.meta.env.VITE_WS_BASE_URL as string | undefined)?.replace(/\/$/, '') ||
+    `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
+
 export default function Competitions() {
     const [competitions, setCompetitions] = useState<Competition[]>([]);
     const [showCreate, setShowCreate] = useState(false);
@@ -60,7 +64,7 @@ export default function Competitions() {
             return null;
         });
 
-        const websocket = new WebSocket(`ws://localhost:8000/ws/competition/${competitionId}/`);
+        const websocket = new WebSocket(`${WS_BASE_URL}/ws/competition/${competitionId}/`);
 
         websocket.onopen = () => {
             console.log('WebSocket connected for competition', competitionId);
