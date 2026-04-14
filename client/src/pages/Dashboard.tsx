@@ -134,11 +134,13 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadInitialData();
   }, []);
 
   useEffect(() => {
     if (selectedServer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       loadTasks(selectedServer.id);
       loadSidebarData(selectedServer.id);
     }
