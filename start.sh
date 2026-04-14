@@ -50,9 +50,19 @@ if ! docker ps --format '{{.Names}}' | grep -q vie-db; then
 fi
 echo -e "${GREEN}✓${NC} Database is running"
 
-# Activate conda/mamba environment
-eval "$(conda shell.bash hook)"
-conda activate vie
+# Activate Python environment when available
+if command -v conda &> /dev/null; then
+    eval "$(conda shell.bash hook)"
+    conda activate vie
+elif command -v mamba &> /dev/null; then
+    eval "$(mamba shell hook --shell bash)"
+    mamba activate vie
+elif command -v micromamba &> /dev/null; then
+    eval "$(micromamba shell hook --shell bash)"
+    micromamba activate vie
+else
+    echo -e "${YELLOW}Warning: conda/mamba/micromamba not found; using current Python environment.${NC}"
+fi
 
 # Start backend
 echo -e "${GREEN}Starting backend server...${NC}"

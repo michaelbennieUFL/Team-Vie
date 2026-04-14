@@ -47,7 +47,11 @@ if not provided_secret_key and not IS_PRODUCTION:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool('DJANGO_DEBUG', not IS_PRODUCTION)
 
-ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['localhost', '127.0.0.1'])
+DEFAULT_ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+if not IS_PRODUCTION and DEBUG:
+    DEFAULT_ALLOWED_HOSTS = ['*']
+
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', DEFAULT_ALLOWED_HOSTS)
 
 
 # Application definition
