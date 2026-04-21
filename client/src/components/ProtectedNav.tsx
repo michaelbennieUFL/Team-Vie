@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 
@@ -17,6 +18,7 @@ const navItems = [
 
 export default function ProtectedNav({ isDarkMode, onToggleTheme }: ProtectedNavProps) {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -40,12 +42,13 @@ export default function ProtectedNav({ isDarkMode, onToggleTheme }: ProtectedNav
         </div>
       </div>
 
-      <nav className="protected-nav__links" aria-label="Primary">
+      <nav className={`protected-nav__links${menuOpen ? ' menu-open' : ''}`} aria-label="Primary">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) => `nav-chip ${isActive ? 'active' : ''}`}
+            onClick={() => setMenuOpen(false)}
           >
             {item.label}
           </NavLink>
@@ -62,8 +65,17 @@ export default function ProtectedNav({ isDarkMode, onToggleTheme }: ProtectedNav
         >
           {isDarkMode ? '☀' : '☾'}
         </button>
-        <button type="button" className="secondary-btn" onClick={handleLogout}>
+        <button type="button" className="secondary-btn logout-button" onClick={handleLogout}>
           Logout
+        </button>
+        <button
+          type="button"
+          className="nav-hamburger"
+          aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <i className={`fa-solid ${menuOpen ? 'fa-xmark' : 'fa-bars'}`} />
         </button>
       </div>
     </header>

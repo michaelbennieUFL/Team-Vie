@@ -2880,17 +2880,48 @@ section p {
     max-width: none;
   }
 
-  .dashboard-topbar,
-  .protected-nav {
-    grid-template-columns: 1fr;
+  .dashboard-topbar {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .protected-nav__links,
+  /* Mobile nav: brand + actions row, links expand below when open */
+  .protected-nav {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto;
+    gap: 0 12px;
+  }
+
+  .protected-nav__brand {
+    min-width: 0;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .protected-nav__actions {
-    width: 100%;
+    min-width: 0;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  /* Logout label hidden on small screens to save space */
+  .protected-nav__actions .logout-button {
+    display: none;
+  }
+
+  .protected-nav__links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: none;
     justify-content: flex-start;
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid rgba(157, 184, 214, 0.18);
+  }
+
+  .protected-nav__links.menu-open {
+    display: flex;
   }
 
   .header-actions {
@@ -2905,6 +2936,15 @@ section p {
 
   .edit-btn {
     justify-self: flex-start;
+  }
+
+  .nav-hamburger {
+    display: flex;
+  }
+
+  .modal {
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
   }
 
   .modal-actions {
@@ -3004,6 +3044,26 @@ section p {
   background: rgba(255, 255, 255, 0.56);
   color: #102132;
   border: 1px solid rgba(157, 184, 214, 0.28);
+}
+
+.nav-hamburger {
+  display: none; /* shown only on mobile via media query */
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(157, 184, 214, 0.24);
+  background: rgba(255, 255, 255, 0.44);
+  color: var(--app-text);
+  cursor: pointer;
+  font-size: 16px;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+}
+
+.nav-hamburger:hover {
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .nav-chip {
@@ -3192,6 +3252,13 @@ section p {
 
 .vie-app-page.theme-dark .nav-chip {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.vie-app-page.theme-dark .nav-hamburger,
+.dashboard.dashboard-dark .nav-hamburger {
+  background: rgba(19, 46, 66, 0.88);
+  border-color: rgba(177, 90, 39, 0.22);
+  color: #eef4fb;
 }
 
 .vie-app-page.theme-dark .nav-chip.active {

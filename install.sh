@@ -65,23 +65,17 @@ echo ""
 
 # ── 2. Start database ───────────────────────────────────────
 echo "Setting up PostgreSQL database..."
-cd "$PROJECT_DIR/database"
-docker compose up -d
-echo "Waiting for database to start..."
-sleep 5
+cd "$PROJECT_DIR"
+docker compose up -d database
 
-# Create the database and user if they don't exist
-docker exec vie-db psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'vie-db'" | grep -q 1 || \
-    docker exec vie-db psql -U postgres -c "CREATE DATABASE \"vie-db\";"
+echo "Waiting for database to become healthy..."
+until docker exec vie-db pg_isready -U vie -d vie-db > /dev/null 2>&1; do
+    sleep 1
+done
 
-docker exec vie-db psql -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname = 'vie'" | grep -q 1 || \
-    docker exec vie-db psql -U postgres -c "CREATE USER vie WITH PASSWORD 'CompeteToAdvance';"
-
-docker exec vie-db psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE \"vie-db\" TO vie;" 2>/dev/null || true
-docker exec vie-db psql -U postgres -d vie-db -c "GRANT ALL ON SCHEMA public TO vie;" 2>/dev/null || true
-
-echo -e "${GREEN}✓${NC} Database is running"
+echo -e "${GREEN}✓${NC} Database is ready"
 echo ""
+
 
 # ── 3. Create Python environment with mamba/conda ────────────
 echo "Setting up Python environment with ${CONDA_CMD}..."

@@ -244,8 +244,21 @@ class ApiService {
       throw new Error('Session expired. Please log in again.');
     }
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      const body = await response.json().catch(() => null);
+      if (body) {
+        // Single-string formats: { error: "..." } or { detail: "..." }
+        if (typeof body.error === 'string') throw new Error(body.error);
+        if (typeof body.detail === 'string') throw new Error(body.detail);
+        // DRF field-level validation: { field: ["msg", ...], ... }
+        const messages = Object.entries(body)
+          .flatMap(([field, msgs]) => {
+            const list = Array.isArray(msgs) ? msgs : [msgs];
+            const label = field === 'non_field_errors' ? '' : `${field}: `;
+            return list.map((m) => `${label}${m}`);
+          });
+        if (messages.length) throw new Error(messages.join(' | '));
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
     return response.json();
   }

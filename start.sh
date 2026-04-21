@@ -101,7 +101,7 @@ echo "  Press Ctrl+C to stop both servers"
 echo ""
 
 # Wait for either process to exit
-wait -n "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
+wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null
 
 # If one exits, clean up the other
 cleanup

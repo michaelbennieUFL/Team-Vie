@@ -659,7 +659,7 @@ export default function Dashboard() {
               </label>
               <p className="panel-subtitle" style={{ margin: 0 }}>Points are assigned automatically from difficulty.</p>
               <label>Due date
-                <input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} />
+                <input type="date" value={newTask.due_date} onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))} required />
               </label>
               <label>Recurrence
                 <select value={newTask.recurrence} onChange={(e) => setNewTask((p) => ({ ...p, recurrence: e.target.value as 'NONE' | 'DAILY' | 'WEEKLY' }))}>

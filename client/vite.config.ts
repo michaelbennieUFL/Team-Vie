@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     allowedHosts: ['teamvie.michaelbennie.org'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   preview: {
     host: '127.0.0.1',

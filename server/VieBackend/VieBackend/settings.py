@@ -101,18 +101,22 @@ WSGI_APPLICATION = 'VieBackend.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+# Database
+# Works both locally and inside Docker
 
-# TODO: update this to work inside a Docker container.
+RUNNING_IN_DOCKER = os.getenv("RUNNING_IN_DOCKER") == "true"
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.getenv('DB_NAME', 'vie-db'),
         'USER': os.getenv('DB_USER', 'vie'),
         'PASSWORD': os.getenv('DB_PASSWORD', 'CompeteToAchieve'),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'HOST': os.getenv('DB_HOST', 'database' if RUNNING_IN_DOCKER else '127.0.0.1'),
         'PORT': os.getenv('DB_PORT', '5433'),
     }
 }
+
 
 
 # Password validation
